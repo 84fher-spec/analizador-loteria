@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 
 # =========================================
 # CONFIGURACIÓN GENERAL
@@ -13,17 +14,28 @@ st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
 # CARGA DEL CSV
+# CLAVE: type=None para Android
 # =========================================
 archivo = st.file_uploader(
-    "📂 Selecciona el archivo CSV",
-    type=["csv"],
+    "📂 Selecciona el archivo CSV (Lotería Nacional)",
+    type=None,
     accept_multiple_files=False
 )
 
 if archivo is not None:
 
-    # Leer CSV (funciona igual en celular y PC)
-    df = pd.read_csv(archivo)
+    try:
+        # Leer CSV de forma robusta (PC + celular)
+        df = pd.read_csv(
+            io.BytesIO(archivo.read()),
+            sep=",",                 # confirmado: separado por comas
+            encoding="latin-1",      # más compatible en Android
+            engine="python"
+        )
+    except Exception as e:
+        st.error("❌ No se pudo leer el archivo CSV")
+        st.code(str(e))
+        st.stop()
 
     # Normalizar nombres de columnas
     df.columns = df.columns.str.strip().str.lower()
@@ -109,10 +121,10 @@ if archivo is not None:
 
             frec = nums.value_counts().sort_values(ascending=False)
 
-            # Mostrar tabla SIN SCROLL
+            # Mostrar tabla (sin advertencia futura)
             st.dataframe(
                 frec.rename("Frecuencia"),
-                use_container_width=True,
+                width="stretch",
                 height=800
             )
 
