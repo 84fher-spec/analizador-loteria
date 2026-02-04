@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-# ==================================================
+# =========================================
 # CONFIGURACIÓN GENERAL
-# ==================================================
+# =========================================
 st.set_page_config(
     page_title="Analizador de Frecuencias",
     layout="centered"
@@ -11,28 +11,43 @@ st.set_page_config(
 
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
-# ==================================================
+# =========================================
 # CARGA DEL CSV
-# ==================================================
-archivo = st.file_uploader("📂 Selecciona el archivo CSV", type=["csv"])
+# =========================================
+archivo = st.file_uploader(
+    "📂 Selecciona el archivo CSV",
+    type=["csv"],
+    accept_multiple_files=False
+)
 
 if archivo is not None:
-    df = pd.read_csv(archivo, sep=None, engine="python")
+
+    # Leer CSV (funciona igual en celular y PC)
+    df = pd.read_csv(archivo)
+
+    # Normalizar nombres de columnas
     df.columns = df.columns.str.strip().str.lower()
 
-    if "fecha" not in df.columns:
-        st.error("❌ No se encontró la columna 'fecha'")
+    # Validar columnas obligatorias
+    columnas_esperadas = {"concurso", "r1", "r2", "r3", "r4", "r5", "fecha"}
+    if not columnas_esperadas.issubset(set(df.columns)):
+        st.error(
+            "❌ El archivo debe contener las columnas:\n"
+            "CONCURSO, R1, R2, R3, R4, R5, FECHA"
+        )
         st.stop()
 
-    # Conversión de fechas
+    # Convertir fecha
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True, errors="coerce")
     df = df.dropna(subset=["fecha"])
 
     if df.empty:
-        st.error("❌ No hay fechas válidas en el archivo")
+        st.error("❌ No hay fechas válidas en el archivo.")
         st.stop()
 
-    # Rango de fechas
+    # =========================================
+    # SELECCIÓN DE FECHAS
+    # =========================================
     fecha_min = df["fecha"].min().date()
     fecha_max = df["fecha"].max().date()
 
@@ -56,10 +71,11 @@ if archivo is not None:
         st.warning("⚠️ La fecha inicial no puede ser mayor que la final.")
         st.stop()
 
-    # ==================================================
-    # CÁLCULO DE FRECUENCIAS
-    # ==================================================
+    # =========================================
+    # PROCESAR DATOS
+    # =========================================
     if st.button("🔍 Calcular frecuencias"):
+
         datos = df[
             (df["fecha"] >= pd.to_datetime(inicio)) &
             (df["fecha"] <= pd.to_datetime(fin))
@@ -69,15 +85,22 @@ if archivo is not None:
             st.warning("⚠️ No hay sorteos en ese rango.")
             st.stop()
 
-        # Índice par = Noche | índice impar = Tarde
+        # Siempre:
+        # fila 0 → Noche
+        # fila 1 → Tarde
         datos_noche = datos.iloc[::2]
         datos_tarde = datos.iloc[1::2]
 
-        def mostrar_frecuencias(nombre, datos):
+        # =========================================
+        # FUNCIÓN PARA MOSTRAR TABLA
+        # =========================================
+        def mostrar_tabla(nombre, datos_bloque):
             st.subheader("🌙 Noche" if nombre == "Noche" else "☀️ Tarde")
 
-            nums = datos.iloc[:, 1:6].values.flatten()
-            nums = pd.to_numeric(nums, errors="coerce")
+            nums = datos_bloque[["r1", "r2", "r3", "r4", "r5"]]
+            nums = nums.apply(pd.to_numeric, errors="coerce")
+
+            nums = nums.values.flatten()
             nums = pd.Series(nums).dropna().astype(int)
 
             if nums.empty:
@@ -86,16 +109,20 @@ if archivo is not None:
 
             frec = nums.value_counts().sort_values(ascending=False)
 
-            # 🔧 ALTURA DINÁMICA PARA EVITAR SCROLL
-            altura = (len(frec) + 1) * 35  # 35px por fila aprox
-
+            # Mostrar tabla SIN SCROLL
             st.dataframe(
                 frec.rename("Frecuencia"),
-                height=altura
+                use_container_width=True,
+                height=800
             )
 
+        # =========================================
+        # MOSTRAR BLOQUES
+        # =========================================
         colA, colB = st.columns(2)
+
         with colA:
-            mostrar_frecuencias("Noche", datos_noche)
+            mostrar_tabla("Noche", datos_noche)
+
         with colB:
-            mostrar_frecuencias("Tarde", datos_tarde)
+            mostrar_tabla("Tarde", datos_tarde)
