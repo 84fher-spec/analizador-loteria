@@ -118,7 +118,6 @@ if archivo is not None:
 
             frec = nums.value_counts().sort_values(ascending=False)
 
-            # MOSTRAR TABLA (SIN BARRA DE DESPLAZAMIENTO)
             st.table(frec.rename("Frecuencia"))
 
         # =========================================
@@ -131,3 +130,22 @@ if archivo is not None:
 
         with colB:
             mostrar_tabla("Tarde", datos_tarde)
+
+        # =========================================
+        # FRECUENCIAS GENERALES (DÍA + NOCHE)
+        # AGREGADO NUEVO – NO MODIFICA NADA ANTERIOR
+        # =========================================
+        st.markdown("---")
+        st.subheader("📊 Frecuencias Generales (Día + Noche)")
+
+        nums_total = datos[["r1", "r2", "r3", "r4", "r5"]]
+        nums_total = nums_total.apply(pd.to_numeric, errors="coerce")
+
+        nums_total = nums_total.values.flatten()
+        nums_total = pd.Series(nums_total).dropna().astype(int)
+
+        if nums_total.empty:
+            st.warning("No hay números para el cálculo general.")
+        else:
+            frec_total = nums_total.value_counts().sort_values(ascending=False)
+            st.table(frec_total.rename("Frecuencia"))
