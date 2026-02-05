@@ -14,7 +14,6 @@ st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
 # CARGA DEL CSV
-# CLAVE: type=None para Android
 # =========================================
 archivo = st.file_uploader(
     "📂 Selecciona el archivo CSV (Lotería Nacional)",
@@ -25,11 +24,10 @@ archivo = st.file_uploader(
 if archivo is not None:
 
     try:
-        # Leer CSV de forma robusta (PC + celular)
         df = pd.read_csv(
             io.BytesIO(archivo.read()),
-            sep=",",                 # confirmado: separado por comas
-            encoding="latin-1",      # más compatible en Android
+            sep=",",
+            encoding="latin-1",
             engine="python"
         )
     except Exception as e:
@@ -97,7 +95,6 @@ if archivo is not None:
             st.warning("⚠️ No hay sorteos en ese rango.")
             st.stop()
 
-        # Siempre:
         # fila 0 → Noche
         # fila 1 → Tarde
         datos_noche = datos.iloc[::2]
@@ -121,12 +118,8 @@ if archivo is not None:
 
             frec = nums.value_counts().sort_values(ascending=False)
 
-            # Mostrar tabla (sin advertencia futura)
-            st.dataframe(
-                frec.rename("Frecuencia"),
-                width="stretch",
-                height=800
-            )
+            # MOSTRAR TABLA (SIN BARRA DE DESPLAZAMIENTO)
+            st.table(frec.rename("Frecuencia"))
 
         # =========================================
         # MOSTRAR BLOQUES
