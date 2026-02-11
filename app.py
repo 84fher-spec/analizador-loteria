@@ -35,10 +35,8 @@ if archivo is not None:
         st.code(str(e))
         st.stop()
 
-    # Normalizar nombres de columnas
     df.columns = df.columns.str.strip().str.lower()
 
-    # Validar columnas obligatorias
     columnas_esperadas = {"concurso", "r1", "r2", "r3", "r4", "r5", "fecha"}
     if not columnas_esperadas.issubset(set(df.columns)):
         st.error(
@@ -47,7 +45,6 @@ if archivo is not None:
         )
         st.stop()
 
-    # Convertir fecha
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True, errors="coerce")
     df = df.dropna(subset=["fecha"])
 
@@ -95,57 +92,45 @@ if archivo is not None:
             st.warning("⚠️ No hay sorteos en ese rango.")
             st.stop()
 
-        # fila 0 → Noche
-        # fila 1 → Tarde
         datos_noche = datos.iloc[::2]
         datos_tarde = datos.iloc[1::2]
 
         # =========================================
-        # FUNCIÓN PARA MOSTRAR TABLA
+        # CÁLCULO DE FRECUENCIAS
         # =========================================
-        def mostrar_tabla(nombre, datos_bloque):
-            st.subheader("🌙 Noche" if nombre == "Noche" else "☀️ Tarde")
-
-            nums = datos_bloque[["r1", "r2", "r3", "r4", "r5"]]
+        def calcular_frecuencia(df_bloque):
+            nums = df_bloque[["r1", "r2", "r3", "r4", "r5"]]
             nums = nums.apply(pd.to_numeric, errors="coerce")
-
-            nums = nums.values.flatten()
-            nums = pd.Series(nums).dropna().astype(int)
-
-            if nums.empty:
-                st.warning("No hay números en este bloque.")
-                return
-
+            nums = pd.Series(nums.values.flatten()).dropna().astype(int)
             frec = nums.value_counts().sort_values(ascending=False)
+            return frec, frec.head(7).index.tolist()
 
-            st.table(frec.rename("Frecuencia"))
+        frec_noche, top7_noche = calcular_frecuencia(datos_noche)
+        frec_tarde, top7_tarde = calcular_frecuencia(datos_tarde)
+        frec_total, top7_total = calcular_frecuencia(datos)
 
         # =========================================
-        # MOSTRAR BLOQUES
+        # RESUMEN (JUSTO ABAJO DEL BOTÓN)
+        # =========================================
+        st.markdown("---")
+        st.subheader("📌 Resumen de resultados")
+        st.write("🌙 **Noche:**", top7_noche)
+        st.write("☀️ **Tarde:**", top7_tarde)
+        st.write("📊 **General:**", top7_total)
+
+        # =========================================
+        # TABLAS (SIN DUPLICADOS)
         # =========================================
         colA, colB = st.columns(2)
 
         with colA:
-            mostrar_tabla("Noche", datos_noche)
+            st.subheader("🌙 Noche")
+            st.table(frec_noche.rename("Frecuencia"))
 
         with colB:
-            mostrar_tabla("Tarde", datos_tarde)
+            st.subheader("☀️ Tarde")
+            st.table(frec_tarde.rename("Frecuencia"))
 
-        # =========================================
-        # FRECUENCIAS GENERALES (DÍA + NOCHE)
-        # AGREGADO NUEVO – NO MODIFICA NADA ANTERIOR
-        # =========================================
         st.markdown("---")
         st.subheader("📊 Frecuencias Generales (Día + Noche)")
-
-        nums_total = datos[["r1", "r2", "r3", "r4", "r5"]]
-        nums_total = nums_total.apply(pd.to_numeric, errors="coerce")
-
-        nums_total = nums_total.values.flatten()
-        nums_total = pd.Series(nums_total).dropna().astype(int)
-
-        if nums_total.empty:
-            st.warning("No hay números para el cálculo general.")
-        else:
-            frec_total = nums_total.value_counts().sort_values(ascending=False)
-            st.table(frec_total.rename("Frecuencia"))
+        st.table(frec_total.rename("Frecuencia"))
