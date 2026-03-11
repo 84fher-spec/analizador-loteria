@@ -14,7 +14,7 @@ def obtener_folio():
 
     if not os.path.exists(FOLIO_FILE):
         with open(FOLIO_FILE, "w") as f:
-            f.write("1")
+            f.write("224")
 
     with open(FOLIO_FILE, "r") as f:
         folio = int(f.read())
@@ -43,12 +43,15 @@ def generar_pdf(datos, logo_path):
     y -= 20 * mm
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawCentredString(40 * mm, y, "HOJA DE SERVICIO")
+    c.drawCentredString(40 * mm, y, "TICKET DE SERVICIO")
 
     y -= 5 * mm
 
     c.setFont("Helvetica", 8)
-    c.drawCentredString(40 * mm, y, "Reparación de computadoras, laptops y celulares")
+    c.drawCentredString(40 * mm, y, "Soporte técnico a computadoras, laptops, celulares y tablets")
+
+    y -= 4 * mm
+    c.drawCentredString(40 * mm, y, "(Ojo de agua, Tecámac)")
 
     y -= 10 * mm
 
@@ -56,6 +59,9 @@ def generar_pdf(datos, logo_path):
 
     y -= 6 * mm
     c.drawString(5 * mm, y, f"Folio: {folio}")
+
+    y -= 6 * mm
+    c.drawString(5 * mm, y, f"Técnico: {datos['tecnico']}")
 
     y -= 6 * mm
     c.drawString(5 * mm, y, f"Fecha: {datos['fecha']}")
@@ -116,6 +122,7 @@ st.write("Sistema sencillo para generar notas de entrega de equipos.")
 logo = st.file_uploader("Subir logotipo (opcional)", type=["png", "jpg"])
 
 fecha = st.date_input("Fecha", datetime.today())
+tecnico = st.text_input("Técnico")
 cliente = st.text_input("Nombre del cliente")
 telefono = st.text_input("Teléfono")
 
@@ -143,6 +150,7 @@ if st.button("📄 Generar Remisión PDF"):
     datos = {
         "folio": folio,
         "fecha": fecha,
+        "tecnico": tecnico,
         "cliente": cliente,
         "telefono": telefono,
         "equipo": equipo,
