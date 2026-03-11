@@ -87,10 +87,10 @@ if archivo is not None:
         # RANGOS EN MESES (ACTUALIZADO)
         # =========================================
         etiquetas = {
-            "1 mes": 30,
             "2 meses": 60,
-            "3 meses": 90,
-            "4 meses": 120
+            "4 meses": 120,
+            "6 meses": 180,
+            "8 meses": 240
         }
 
         resultados = {}
