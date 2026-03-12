@@ -68,10 +68,10 @@ if archivo is not None:
             return frec
 
         etiquetas = {
-            "1 semana": 7,
-            "2 semanas": 14,
+            "15 días": 15,
             "1 mes": 30,
-            "2 meses": 60
+            "2 meses": 60,
+            "3 meses": 90
         }
 
         resultados = {}
