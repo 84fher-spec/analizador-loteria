@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import timedelta
+import random
 
 # =========================================
 # CONFIGURACIÓN GENERAL
@@ -64,7 +65,7 @@ if archivo is not None:
             nums = df_bloque[["r1", "r2", "r3", "r4", "r5"]]
             nums = nums.apply(pd.to_numeric, errors="coerce")
             nums = pd.Series(nums.values.flatten()).dropna().astype(int)
-            frec = nums.value_counts().head(10)
+            frec = nums.value_counts().head(28)
             return frec
 
         etiquetas = {
@@ -87,10 +88,10 @@ if archivo is not None:
             resultados[etiqueta] = top10
 
         # =========================================
-        # TABLA HTML HORIZONTAL (FRECUENCIA EN GRIS)
+        # TABLA
         # =========================================
         st.markdown("---")
-        st.subheader("📊 Top 10 por periodo")
+        st.subheader("📊 Top 28 por periodo")
 
         html = "<table style='width:100%; border-collapse:collapse; text-align:center;'>"
         html += "<tr>"
@@ -99,7 +100,7 @@ if archivo is not None:
             html += f"<th style='padding:4px; border-bottom:1px solid #ccc;'>{col}</th>"
         html += "</tr>"
 
-        for i in range(10):
+        for i in range(28):
             html += "<tr>"
             for col in resultados.keys():
                 if i < len(resultados[col]):
@@ -117,3 +118,98 @@ if archivo is not None:
         html += "</table>"
 
         st.markdown(html, unsafe_allow_html=True)
+
+        # =========================================
+        # GENERACIÓN DE COMBINACIONES (ROBUSTA)
+        # =========================================
+        st.markdown("---")
+        st.subheader("🎯 Combinaciones generadas")
+
+        if "15 días" in resultados:
+
+            lista_15 = resultados["15 días"]
+            intermedios = lista_15.iloc[6:21].index.tolist()
+
+            def decenas_ok(comb, min_decenas=3):
+                decenas = [n // 10 for n in comb]
+                return len(set(decenas)) >= min_decenas
+
+            def pares_nones_ok(comb):
+                pares = sum(1 for n in comb if n % 2 == 0)
+                return pares in [2, 3]
+
+            def contar_consecutivos(comb):
+                comb_sorted = sorted(comb)
+                count = 0
+                for i in range(len(comb_sorted) - 1):
+                    if comb_sorted[i] + 1 == comb_sorted[i+1]:
+                        count += 1
+                return count
+
+            def generar(nivel):
+
+                for _ in range(5000):
+
+                    pool = intermedios * 2
+                    random.shuffle(pool)
+
+                    temp = []
+                    valido = True
+
+                    for i in range(6):
+                        comb = sorted(pool[i*5:(i+1)*5])
+
+                        if len(set(comb)) < 5:
+                            valido = False
+                            break
+
+                        # NIVEL 1 (estricto)
+                        if nivel == 1:
+                            if not pares_nones_ok(comb):
+                                valido = False
+                                break
+                            if contar_consecutivos(comb) > 0:
+                                valido = False
+                                break
+                            if not decenas_ok(comb, 3):
+                                valido = False
+                                break
+
+                        # NIVEL 2 (relaja pares/nones)
+                        elif nivel == 2:
+                            if contar_consecutivos(comb) > 0:
+                                valido = False
+                                break
+                            if not decenas_ok(comb, 3):
+                                valido = False
+                                break
+
+                        # NIVEL 3 (más flexible)
+                        elif nivel == 3:
+                            if contar_consecutivos(comb) > 1:
+                                valido = False
+                                break
+                            if not decenas_ok(comb, 2):
+                                valido = False
+                                break
+
+                        temp.append(comb)
+
+                    if valido and len(set(tuple(c) for c in temp)) == 6:
+                        return temp
+
+                return None
+
+            combinaciones = None
+
+            for nivel in [1, 2, 3]:
+                combinaciones = generar(nivel)
+                if combinaciones:
+                    st.info(f"Combinaciones generadas con nivel {nivel}")
+                    break
+
+            if combinaciones:
+                for i, c in enumerate(combinaciones, 1):
+                    st.write(f"Combinación {i}: {c}")
+            else:
+                st.warning("No se pudo generar combinaciones ni relajando restricciones.")
