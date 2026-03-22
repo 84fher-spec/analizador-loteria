@@ -29,7 +29,65 @@ def contar_consecutivos(comb):
     return sum(1 for i in range(len(comb)-1) if comb[i] + 1 == comb[i+1])
 
 # =========================================
-# GENERADOR GENERAL
+# CLASIFICACIÓN
+# =========================================
+def clasificar_numeros(nums):
+    unidades = [n for n in nums if 1 <= n <= 9]
+    decenas = [n for n in nums if 10 <= n <= 19]
+    veintenas = [n for n in nums if 20 <= n <= 28]
+    return unidades, decenas, veintenas
+
+# =========================================
+# SELECCIÓN POR GRUPO (con fallback global)
+# =========================================
+def seleccionar_grupo(candidatos, todos, cantidad):
+    candidatos = list(set(candidatos))
+    todos = list(set(todos))
+
+    if len(candidatos) >= cantidad:
+        return random.sample(candidatos, cantidad)
+
+    faltan = cantidad - len(candidatos)
+    resto = [n for n in todos if n not in candidatos]
+
+    seleccion_extra = random.sample(resto, min(faltan, len(resto)))
+    resultado = candidatos + seleccion_extra
+
+    while len(resultado) < cantidad:
+        resultado.append(random.choice(todos))
+
+    return resultado[:cantidad]
+
+# =========================================
+# 15 NÚMEROS (5-5-5 EXACTO)
+# =========================================
+def seleccionar_15_intermedios(base, full):
+
+    u_base, d_base, v_base = clasificar_numeros(base)
+    u_full, d_full, v_full = clasificar_numeros(full)
+
+    sel_u = seleccionar_grupo(u_base, u_full, 5)
+    sel_d = seleccionar_grupo(d_base, d_full, 5)
+    sel_v = seleccionar_grupo(v_base, v_full, 5)
+
+    return sel_u + sel_d + sel_v
+
+# =========================================
+# 10 NÚMEROS (3-4-3 EXACTO)
+# =========================================
+def seleccionar_10_intermedios(base, full):
+
+    u_base, d_base, v_base = clasificar_numeros(base)
+    u_full, d_full, v_full = clasificar_numeros(full)
+
+    sel_u = seleccionar_grupo(u_base, u_full, 3)
+    sel_d = seleccionar_grupo(d_base, d_full, 4)
+    sel_v = seleccionar_grupo(v_base, v_full, 3)
+
+    return sel_u + sel_d + sel_v
+
+# =========================================
+# GENERADOR
 # =========================================
 def generar(pool_base, repeticiones):
 
@@ -45,23 +103,19 @@ def generar(pool_base, repeticiones):
             for i in range(6):
                 comb = sorted(pool[i*5:(i+1)*5])
 
-                # evitar repetidos dentro de la combinación
                 if len(set(comb)) < 5:
                     valido = False
                     break
 
-                # NIVEL 1 (estricto)
                 if nivel == 1:
                     if not pares_nones_ok(comb): valido = False; break
                     if contar_consecutivos(comb) > 0: valido = False; break
                     if not decenas_ok(comb, 3): valido = False; break
 
-                # NIVEL 2
                 elif nivel == 2:
                     if contar_consecutivos(comb) > 0: valido = False; break
                     if not decenas_ok(comb, 3): valido = False; break
 
-                # NIVEL 3
                 elif nivel == 3:
                     if contar_consecutivos(comb) > 1: valido = False; break
                     if not decenas_ok(comb, 2): valido = False; break
@@ -97,25 +151,19 @@ if archivo is not None:
         st.error("❌ No hay fechas válidas en el archivo.")
         st.stop()
 
-    # =========================================
-    # INPUT MANUAL
-    # =========================================
     st.markdown("---")
     st.subheader("✍️ Agregar registro manual")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    r1 = col1.number_input("R1", 1, 100, step=1)
-    r2 = col2.number_input("R2", 1, 100, step=1)
-    r3 = col3.number_input("R3", 1, 100, step=1)
-    r4 = col4.number_input("R4", 1, 100, step=1)
-    r5 = col5.number_input("R5", 1, 100, step=1)
+    r1 = col1.number_input("R1", 1, 28)
+    r2 = col2.number_input("R2", 1, 28)
+    r3 = col3.number_input("R3", 1, 28)
+    r4 = col4.number_input("R4", 1, 28)
+    r5 = col5.number_input("R5", 1, 28)
 
     usar_manual = st.checkbox("Usar este registro en el cálculo")
 
-    # =========================================
-    # BOTÓN PRINCIPAL
-    # =========================================
     if st.button("🔍 Calcular frecuencias"):
 
         df_calculo = df.copy()
@@ -155,32 +203,36 @@ if archivo is not None:
 
         st.session_state["resultados"] = resultados
 
-        # =========================================
-        # 15 DÍAS
-        # =========================================
+        # 15 días
         if "15 días" in resultados:
             base = resultados["15 días"]
+            full = base.index.tolist()
 
-            st.session_state["i15"] = base.iloc[6:21].index.tolist()
-            st.session_state["i10"] = base.iloc[8:18].index.tolist()
+            raw15 = base.iloc[6:21].index.tolist()
+            raw10 = base.iloc[8:18].index.tolist()
+
+            st.session_state["i15"] = seleccionar_15_intermedios(raw15, full)
+            st.session_state["i10"] = seleccionar_10_intermedios(raw10, full)
 
             st.session_state["c15"], st.session_state["n15"] = generar(st.session_state["i15"], 2)
             st.session_state["c10"], st.session_state["n10"] = generar(st.session_state["i10"], 3)
 
-        # =========================================
-        # 1 MES
-        # =========================================
+        # 1 mes (RESTAURADO)
         if "1 mes" in resultados:
             base = resultados["1 mes"]
+            full = base.index.tolist()
 
-            st.session_state["i15_m"] = base.iloc[6:21].index.tolist()
-            st.session_state["i10_m"] = base.iloc[8:18].index.tolist()
+            raw15 = base.iloc[6:21].index.tolist()
+            raw10 = base.iloc[8:18].index.tolist()
+
+            st.session_state["i15_m"] = seleccionar_15_intermedios(raw15, full)
+            st.session_state["i10_m"] = seleccionar_10_intermedios(raw10, full)
 
             st.session_state["c15_m"], st.session_state["n15_m"] = generar(st.session_state["i15_m"], 2)
             st.session_state["c10_m"], st.session_state["n10_m"] = generar(st.session_state["i10_m"], 3)
 
 # =========================================
-# TABLA RESULTADOS
+# TABLA RESULTADOS (RESTAURADA)
 # =========================================
 if "resultados" in st.session_state:
 
@@ -207,7 +259,7 @@ if "resultados" in st.session_state:
     st.markdown(html, unsafe_allow_html=True)
 
 # =========================================
-# FUNCIÓN DISPLAY
+# DISPLAY
 # =========================================
 def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 
@@ -231,11 +283,8 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 # =========================================
 # BLOQUES
 # =========================================
-
-# 15 días
 mostrar("🎯 15 números (15 días x2)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
 mostrar("🎯 10 números (15 días x3)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
 
-# 1 mes
 mostrar("🎯 15 números (1 mes x2)", "c15_m","n15_m","i15_m",2,"🔄 Generar nuevas (15 números - 1 mes)")
 mostrar("🎯 10 números (1 mes x3)", "c10_m","n10_m","i10_m",3,"🔄 Generar nuevas (10 números - 1 mes)")
