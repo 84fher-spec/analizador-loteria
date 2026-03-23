@@ -87,20 +87,23 @@ def seleccionar_10_intermedios(base, full):
     return sel_u + sel_d + sel_v
 
 # =========================================
-# GENERADOR
+# GENERADOR (MODIFICADO)
 # =========================================
 def generar(pool_base, repeticiones):
+
+    total_nums = len(pool_base)
+    num_combinaciones = total_nums // 5  # 15→3, 10→2
 
     def generar_nivel(nivel):
         for _ in range(5000):
 
-            pool = pool_base * repeticiones
+            pool = pool_base[:]
             random.shuffle(pool)
 
             temp = []
             valido = True
 
-            for i in range(6):
+            for i in range(num_combinaciones):
                 comb = sorted(pool[i*5:(i+1)*5])
 
                 if len(set(comb)) < 5:
@@ -122,7 +125,7 @@ def generar(pool_base, repeticiones):
 
                 temp.append(comb)
 
-            if valido and len(set(tuple(c) for c in temp)) == 6:
+            if valido and len(set(tuple(c) for c in temp)) == num_combinaciones:
                 return temp, nivel
 
         return None, None
@@ -257,7 +260,7 @@ if "resultados" in st.session_state:
     st.markdown(html, unsafe_allow_html=True)
 
 # =========================================
-# DISPLAY (ÚNICO CAMBIO AQUÍ)
+# DISPLAY
 # =========================================
 def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 
@@ -266,7 +269,6 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
         st.markdown("---")
         st.subheader(titulo)
 
-        # 🔹 Mostrar base seleccionada
         if key_i in st.session_state:
             base_nums = sorted(st.session_state[key_i])
             st.write(f"Base seleccionada: {base_nums}")
@@ -284,10 +286,10 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
             st.session_state[key_n] = n
 
 # =========================================
-# BLOQUES
+# BLOQUES (ACTUALIZADO)
 # =========================================
-mostrar("🎯 15 números (15 días x2)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
-mostrar("🎯 10 números (15 días x3)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
+mostrar("🎯 15 números (15 días)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
+mostrar("🎯 10 números (15 días)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
 
-mostrar("🎯 15 números (1 mes x2)", "c15_m","n15_m","i15_m",2,"🔄 Generar nuevas (15 números - 1 mes)")
-mostrar("🎯 10 números (1 mes x3)", "c10_m","n10_m","i10_m",3,"🔄 Generar nuevas (10 números - 1 mes)")
+mostrar("🎯 15 números (1 mes)", "c15_m","n15_m","i15_m",2,"🔄 Generar nuevas (15 números - 1 mes)")
+mostrar("🎯 10 números (1 mes)", "c10_m","n10_m","i10_m",3,"🔄 Generar nuevas (10 números - 1 mes)")
