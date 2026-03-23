@@ -203,7 +203,6 @@ if archivo is not None:
 
         st.session_state["resultados"] = resultados
 
-        # 15 días
         if "15 días" in resultados:
             base = resultados["15 días"]
             full = base.index.tolist()
@@ -217,7 +216,6 @@ if archivo is not None:
             st.session_state["c15"], st.session_state["n15"] = generar(st.session_state["i15"], 2)
             st.session_state["c10"], st.session_state["n10"] = generar(st.session_state["i10"], 3)
 
-        # 1 mes (RESTAURADO)
         if "1 mes" in resultados:
             base = resultados["1 mes"]
             full = base.index.tolist()
@@ -232,7 +230,7 @@ if archivo is not None:
             st.session_state["c10_m"], st.session_state["n10_m"] = generar(st.session_state["i10_m"], 3)
 
 # =========================================
-# TABLA RESULTADOS (RESTAURADA)
+# TABLA RESULTADOS
 # =========================================
 if "resultados" in st.session_state:
 
@@ -259,7 +257,7 @@ if "resultados" in st.session_state:
     st.markdown(html, unsafe_allow_html=True)
 
 # =========================================
-# DISPLAY
+# DISPLAY (ÚNICO CAMBIO AQUÍ)
 # =========================================
 def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 
@@ -267,6 +265,11 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 
         st.markdown("---")
         st.subheader(titulo)
+
+        # 🔹 Mostrar base seleccionada
+        if key_i in st.session_state:
+            base_nums = sorted(st.session_state[key_i])
+            st.write(f"Base seleccionada: {base_nums}")
 
         if st.session_state[key_c]:
             st.info(f"Nivel: {st.session_state[key_n]}")
