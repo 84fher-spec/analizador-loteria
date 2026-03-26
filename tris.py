@@ -71,12 +71,21 @@ if archivo is not None:
             posiciones = ["r1","r2","r3","r4","r5"]
             resultado = {}
 
+            # 🔹 Rango correcto: 0 a 9
+            rango_numeros = list(range(0, 10))
+
             for pos in posiciones:
 
                 nums = pd.to_numeric(df_bloque[pos], errors="coerce")
                 nums = nums.dropna().astype(int)
 
-                frec = nums.value_counts().head(10)
+                frec = nums.value_counts()
+
+                # 🔹 Incluir números con 0 frecuencia
+                frec = frec.reindex(rango_numeros, fill_value=0)
+
+                # 🔹 Ordenar por frecuencia descendente
+                frec = frec.sort_values(ascending=False).head(10)
 
                 resultado[pos.upper()] = frec
 
