@@ -2,136 +2,175 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import timedelta
+import random
 
 # =========================================
-# CONFIGURACIÓN GENERAL
+# CONFIG
 # =========================================
-st.set_page_config(
-    page_title="Analizador de Frecuencias",
-    layout="centered"
-)
+st.set_page_config(page_title="Analizador", layout="centered")
+st.title("📊 Analizador de Frecuencias")
 
-st.title("📊 Analizador de Frecuencias por Sorteo")
+archivo = st.file_uploader("📂 CSV", type=None)
 
 # =========================================
-# CARGA DEL CSV
+# FUNCIONES
 # =========================================
-archivo = st.file_uploader(
-    "📂 Selecciona el archivo CSV",
-    type=None,
-    accept_multiple_files=False
-)
+def frec(data, columnas):
+    nums = data[columnas].apply(pd.to_numeric, errors="coerce")
+    nums = pd.Series(nums.values.flatten()).dropna().astype(int)
+    c = nums.value_counts().reindex(range(1,40), fill_value=0)
+    return c.sort_values(ascending=False)
 
+def seleccionar(freq):
+    nums = list(freq.index)
+
+    grupos = [
+        [n for n in nums if 1<=n<=9],
+        [n for n in nums if 10<=n<=19],
+        [n for n in nums if 20<=n<=29],
+        [n for n in nums if 30<=n<=39],
+    ]
+
+    sel = []
+    for g in grupos:
+        pares = [n for n in g if n%2==0]
+        nones = [n for n in g if n%2!=0]
+        sel += pares[:2] + nones[:2]
+
+    faltan = [n for n in nums if n not in sel]
+    while len(sel) < 18:
+        sel.append(faltan.pop(0))
+
+    return sorted(sel[:18])
+
+def decena(n):
+    return 1 if n<=9 else 2 if n<=19 else 3 if n<=29 else 4
+
+def validar(combo, nivel):
+    combo = sorted(combo)
+
+    consecutivos = sum(1 for i in range(5) if combo[i]+1 == combo[i+1])
+    if nivel == 1 and consecutivos > 0:
+        return False
+    if nivel == 2 and consecutivos > 1:
+        return False
+
+    pares = sum(n % 2 == 0 for n in combo)
+    if pares < 2 or pares > 4:
+        return False
+
+    decs = len(set(decena(n) for n in combo))
+    if nivel in [1,2] and decs != 4:
+        return False
+    if nivel == 3 and decs < 3:
+        return False
+
+    return True
+
+def generar(nums):
+    for nivel in [1,2,3]:
+        for _ in range(4000):
+            pool = nums.copy()
+            random.shuffle(pool)
+
+            c1, c2, c3 = pool[:6], pool[6:12], pool[12:18]
+
+            if all(validar(c, nivel) for c in [c1, c2, c3]):
+                return [sorted(c1), sorted(c2), sorted(c3)], nivel
+    return [], 0
+
+# =========================================
+# CALLBACKS
+# =========================================
+def regen_2m():
+    st.session_state.comb2, st.session_state.nivel2 = generar(st.session_state.sel2)
+
+def regen_4m():
+    st.session_state.comb4, st.session_state.nivel4 = generar(st.session_state.sel4)
+
+# =========================================
+# PROCESO PRINCIPAL
+# =========================================
 if archivo is not None:
 
-    try:
-        df = pd.read_csv(
-            io.BytesIO(archivo.read()),
-            sep=",",
-            encoding="latin-1",
-            engine="python"
-        )
-    except Exception as e:
-        st.error("❌ No se pudo leer el archivo CSV")
-        st.code(str(e))
-        st.stop()
-
+    df = pd.read_csv(io.BytesIO(archivo.read()), sep=",", encoding="latin-1")
     df.columns = df.columns.str.strip().str.lower()
 
-    # =========================================
-    # DETECCIÓN DE FORMATO
-    # =========================================
-    columnas_r = {"r1", "r2", "r3", "r4", "r5"}
-    columnas_f = {"f1", "f2", "f3", "f4", "f5", "f6", "f7"}
+    columnas = ["r1","r2","r3","r4","r5"] if "r1" in df.columns else ["f1","f2","f3","f4","f5","f6","f7"]
 
-    if "fecha" not in df.columns:
-        st.error("❌ El archivo debe contener la columna FECHA")
-        st.stop()
-
-    if columnas_r.issubset(df.columns):
-        columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
-    elif columnas_f.issubset(df.columns):
-        columnas_numeros = ["f1", "f2", "f3", "f4", "f5", "f6", "f7"]
-    else:
-        st.error(
-            "❌ El archivo debe contener:\n"
-            "- R1 a R5 + FECHA  **o**\n"
-            "- F1 a F7 + FECHA"
-        )
-        st.stop()
-
-    # =========================================
-    # PROCESAMIENTO DE FECHAS
-    # =========================================
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True, errors="coerce")
     df = df.dropna(subset=["fecha"])
 
-    if df.empty:
-        st.error("❌ No hay fechas válidas en el archivo.")
-        st.stop()
-
-    # =========================================
-    # BOTÓN DE PROCESO
-    # =========================================
     if st.button("🔍 Calcular frecuencias"):
 
         fecha_base = df["fecha"].max()
 
-        def calcular_top10(df_bloque):
-            nums = df_bloque[columnas_numeros]
-            nums = nums.apply(pd.to_numeric, errors="coerce")
-            nums = pd.Series(nums.values.flatten()).dropna().astype(int)
-            return nums.value_counts().head(10)
-
-        # =========================================
-        # RANGOS EN MESES (ACTUALIZADO)
-        # =========================================
-        etiquetas = {
-            "2 meses": 60,
-            "4 meses": 120,
-            "6 meses": 180,
-            "8 meses": 240
+        resultados = {
+            "2 meses": frec(df[df["fecha"] >= fecha_base - timedelta(days=60)], columnas),
+            "4 meses": frec(df[df["fecha"] >= fecha_base - timedelta(days=120)], columnas),
+            "8 meses": frec(df[df["fecha"] >= fecha_base - timedelta(days=240)], columnas)
         }
 
-        resultados = {}
+        st.session_state.resultados = resultados
+        st.session_state.sel2 = seleccionar(resultados["2 meses"])
+        st.session_state.sel4 = seleccionar(resultados["4 meses"])
 
-        for etiqueta, dias in etiquetas.items():
-            fecha_inicio = fecha_base - timedelta(days=dias)
-            datos_periodo = df[df["fecha"] >= fecha_inicio]
+        st.session_state.comb2, st.session_state.nivel2 = generar(st.session_state.sel2)
+        st.session_state.comb4, st.session_state.nivel4 = generar(st.session_state.sel4)
 
-            if datos_periodo.empty:
-                continue
+# =========================================
+# MOSTRAR RESULTADOS
+# =========================================
+if "resultados" in st.session_state:
 
-            resultados[etiqueta] = calcular_top10(datos_periodo)
+    resultados = st.session_state.resultados
 
-        # =========================================
-        # TABLA HORIZONTAL (FRECUENCIA EN GRIS)
-        # =========================================
-        st.markdown("---")
-        st.subheader("📊 Top 10 por periodo")
+    st.subheader("📊 Frecuencias")
 
-        html = "<table style='width:100%; border-collapse:collapse; text-align:center;'>"
+    html = "<table style='width:100%; text-align:center;'>"
+    html += "<tr>" + "".join([f"<th>{k}</th>" for k in resultados]) + "</tr>"
+
+    for i in range(39):
         html += "<tr>"
-
-        for col in resultados.keys():
-            html += f"<th style='padding:4px; border-bottom:1px solid #ccc;'>{col}</th>"
+        for k in resultados:
+            num = resultados[k].index[i]
+            f = resultados[k].iloc[i]
+            html += f"<td>{num} ({f})</td>"
         html += "</tr>"
+    html += "</table>"
 
-        for i in range(10):
-            html += "<tr>"
-            for col in resultados.keys():
-                if i < len(resultados[col]):
-                    num = resultados[col].index[i]
-                    freq = resultados[col].iloc[i]
-                    html += (
-                        "<td style='padding:4px;'>"
-                        f"{num} <span style='color:#888;'>({freq})</span>"
-                        "</td>"
-                    )
-                else:
-                    html += "<td></td>"
-            html += "</tr>"
+    st.markdown(html, unsafe_allow_html=True)
 
-        html += "</table>"
+    if "comb2" not in st.session_state:
+        st.session_state.comb2, st.session_state.nivel2 = generar(st.session_state.sel2)
 
-        st.markdown(html, unsafe_allow_html=True)
+    if "comb4" not in st.session_state:
+        st.session_state.comb4, st.session_state.nivel4 = generar(st.session_state.sel4)
+
+    # =========================================
+    # 2 MESES
+    # =========================================
+    st.markdown("---")
+    st.subheader("🎯 2 meses")
+
+    st.write(", ".join(map(str, st.session_state.sel2)))
+    st.write(f"Nivel: {st.session_state.nivel2}")
+
+    for i, c in enumerate(st.session_state.comb2, 1):
+        st.write(f"C{i}: {', '.join(map(str, c))}")
+
+    st.button("🔁 Generar nuevas (2 meses)", key="btn_2m", on_click=regen_2m)
+
+    # =========================================
+    # 4 MESES
+    # =========================================
+    st.markdown("---")
+    st.subheader("🎯 4 meses")
+
+    st.write(", ".join(map(str, st.session_state.sel4)))
+    st.write(f"Nivel: {st.session_state.nivel4}")
+
+    for i, c in enumerate(st.session_state.comb4, 1):
+        st.write(f"C{i}: {', '.join(map(str, c))}")
+
+    st.button("🔁 Generar nuevas (4 meses)", key="btn_4m", on_click=regen_4m)
