@@ -75,7 +75,9 @@ if archivo is not None:
                 nums = pd.to_numeric(df_bloque[pos], errors="coerce")
                 nums = nums.dropna().astype(int)
 
-                frec = nums.value_counts().head(5)
+                # 🔹 CAMBIO: incluir números del 1 al 5 con frecuencia 0
+                frec = nums.value_counts().reindex(range(1, 6), fill_value=0)
+                frec = frec.sort_values(ascending=False).head(5)
 
                 resultado[pos.upper()] = frec
 
