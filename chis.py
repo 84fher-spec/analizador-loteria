@@ -188,7 +188,12 @@ if archivo is not None:
             nums = df_bloque[["r1","r2","r3","r4","r5"]]
             nums = nums.apply(pd.to_numeric, errors="coerce")
             nums = pd.Series(nums.values.flatten()).dropna().astype(int)
-            return nums.value_counts().head(28)
+
+            conteo = nums.value_counts()
+            conteo = conteo.reindex(range(1, 29), fill_value=0)
+            conteo = conteo.sort_values(ascending=False)
+
+            return conteo.head(28)
 
         etiquetas = {
             "15 días": 15,
@@ -280,7 +285,7 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
         else:
             st.warning("No fue posible generar las combinaciones")
 
-        if st.button(boton):
+        if st.button(boton, key=boton):
             c, n = generar(st.session_state[key_i], rep)
             st.session_state[key_c] = c
             st.session_state[key_n] = n
