@@ -26,7 +26,7 @@ def pares_nones_ok(comb):
 
 def contar_consecutivos(comb):
     comb = sorted(comb)
-    return sum(1 for i in range(len(comb)-1) if comb[i] + 1 == comb[i+1])
+    return sum(1 for i in range(len(comb) - 1) if comb[i] + 1 == comb[i + 1])
 
 # =========================================
 # CLASIFICACIÓN
@@ -49,8 +49,8 @@ def seleccionar_grupo(candidatos, todos, cantidad):
 
     faltan = cantidad - len(candidatos)
     resto = [n for n in todos if n not in candidatos]
-
     seleccion_extra = random.sample(resto, min(faltan, len(resto)))
+
     resultado = candidatos + seleccion_extra
 
     while len(resultado) < cantidad:
@@ -62,7 +62,6 @@ def seleccionar_grupo(candidatos, todos, cantidad):
 # 15 NÚMEROS (5-5-5 EXACTO)
 # =========================================
 def seleccionar_15_intermedios(base, full):
-
     u_base, d_base, v_base = clasificar_numeros(base)
     u_full, d_full, v_full = clasificar_numeros(full)
 
@@ -73,30 +72,14 @@ def seleccionar_15_intermedios(base, full):
     return sel_u + sel_d + sel_v
 
 # =========================================
-# 10 NÚMEROS (3-4-3 EXACTO)
-# =========================================
-def seleccionar_10_intermedios(base, full):
-
-    u_base, d_base, v_base = clasificar_numeros(base)
-    u_full, d_full, v_full = clasificar_numeros(full)
-
-    sel_u = seleccionar_grupo(u_base, u_full, 3)
-    sel_d = seleccionar_grupo(d_base, d_full, 4)
-    sel_v = seleccionar_grupo(v_base, v_full, 3)
-
-    return sel_u + sel_d + sel_v
-
-# =========================================
-# GENERADOR (MODIFICADO)
+# GENERADOR ORIGINAL
 # =========================================
 def generar(pool_base, repeticiones):
-
     total_nums = len(pool_base)
-    num_combinaciones = total_nums // 5  # 15→3, 10→2
+    num_combinaciones = total_nums // 5
 
     def generar_nivel(nivel):
         for _ in range(5000):
-
             pool = pool_base[:]
             random.shuffle(pool)
 
@@ -104,24 +87,38 @@ def generar(pool_base, repeticiones):
             valido = True
 
             for i in range(num_combinaciones):
-                comb = sorted(pool[i*5:(i+1)*5])
+                comb = sorted(pool[i * 5:(i + 1) * 5])
 
                 if len(set(comb)) < 5:
                     valido = False
                     break
 
                 if nivel == 1:
-                    if not pares_nones_ok(comb): valido = False; break
-                    if contar_consecutivos(comb) > 0: valido = False; break
-                    if not decenas_ok(comb, 3): valido = False; break
+                    if not pares_nones_ok(comb):
+                        valido = False
+                        break
+                    if contar_consecutivos(comb) > 0:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 3):
+                        valido = False
+                        break
 
                 elif nivel == 2:
-                    if contar_consecutivos(comb) > 0: valido = False; break
-                    if not decenas_ok(comb, 3): valido = False; break
+                    if contar_consecutivos(comb) > 0:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 3):
+                        valido = False
+                        break
 
                 elif nivel == 3:
-                    if contar_consecutivos(comb) > 1: valido = False; break
-                    if not decenas_ok(comb, 2): valido = False; break
+                    if contar_consecutivos(comb) > 1:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 2):
+                        valido = False
+                        break
 
                 temp.append(comb)
 
@@ -138,12 +135,92 @@ def generar(pool_base, repeticiones):
     return None, None
 
 # =========================================
+# GENERADOR 6 (OPTIMIZADO)
+# =========================================
+def generar_6(balance):
+    frecuencias = balance
+    max_freq = frecuencias.max()
+
+    top_real = frecuencias[frecuencias >= max_freq - 1].index.tolist()
+    if len(top_real) < 4:
+        top_real = frecuencias.head(4).index.tolist()
+
+    top_extendido = frecuencias.head(10).index.tolist()
+    base_nums = list(range(1, 29))
+
+    def construir_pool(top_usar):
+        repetidos = random.sample(top_usar, 2)
+        pool = base_nums + repetidos
+        random.shuffle(pool)
+        return pool
+
+    def dividir_pool(pool):
+        return [sorted(pool[i * 5:(i + 1) * 5]) for i in range(6)]
+
+    for nivel in [1, 2, 3]:
+        top_usar = top_real if nivel < 3 else top_extendido
+
+        for _ in range(3000):
+            pool = construir_pool(top_usar)
+            combinaciones = dividir_pool(pool)
+
+            plano = [n for c in combinaciones for n in c]
+            conteo = pd.Series(plano).value_counts()
+
+            if len(conteo) != 28:
+                continue
+
+            if not all(v in [1, 2] for v in conteo):
+                continue
+
+            if sum(v == 2 for v in conteo) != 2:
+                continue
+
+            valido = True
+
+            for comb in combinaciones:
+                if len(set(comb)) < 5:
+                    valido = False
+                    break
+
+                if nivel == 1:
+                    if not pares_nones_ok(comb):
+                        valido = False
+                        break
+                    if contar_consecutivos(comb) > 0:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 3):
+                        valido = False
+                        break
+
+                elif nivel == 2:
+                    if contar_consecutivos(comb) > 0:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 3):
+                        valido = False
+                        break
+
+                elif nivel == 3:
+                    if contar_consecutivos(comb) > 1:
+                        valido = False
+                        break
+                    if not decenas_ok(comb, 2):
+                        valido = False
+                        break
+
+            if valido:
+                return combinaciones, nivel
+
+    return None, None
+
+# =========================================
 # CARGA CSV
 # =========================================
 archivo = st.file_uploader("📂 Selecciona el archivo CSV")
 
 if archivo is not None:
-
     df = pd.read_csv(io.BytesIO(archivo.read()), encoding="latin-1")
     df.columns = df.columns.str.strip().str.lower()
 
@@ -168,15 +245,17 @@ if archivo is not None:
     usar_manual = st.checkbox("Usar este registro en el cálculo")
 
     if st.button("🔍 Calcular frecuencias"):
-
         df_calculo = df.copy()
 
         if usar_manual:
             nueva_fecha = df["fecha"].max() + timedelta(days=1)
 
             nuevo = pd.DataFrame([{
-                "r1": r1, "r2": r2, "r3": r3,
-                "r4": r4, "r5": r5,
+                "r1": r1,
+                "r2": r2,
+                "r3": r3,
+                "r4": r4,
+                "r5": r5,
                 "fecha": nueva_fecha
             }])
 
@@ -185,8 +264,9 @@ if archivo is not None:
         fecha_base = df_calculo["fecha"].max()
 
         def calcular(df_bloque):
-            nums = df_bloque[["r1","r2","r3","r4","r5"]]
+            nums = df_bloque[["r1", "r2", "r3", "r4", "r5"]]
             nums = nums.apply(pd.to_numeric, errors="coerce")
+
             nums = pd.Series(nums.values.flatten()).dropna().astype(int)
 
             conteo = nums.value_counts()
@@ -206,42 +286,22 @@ if archivo is not None:
 
         for et, d in etiquetas.items():
             datos = df_calculo[df_calculo["fecha"] >= fecha_base - timedelta(days=d)]
+
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
         st.session_state["resultados"] = resultados
 
         if "15 días" in resultados:
-            base = resultados["15 días"]
-            full = base.index.tolist()
-
-            raw15 = base.iloc[6:21].index.tolist()
-            raw10 = base.iloc[8:18].index.tolist()
-
-            st.session_state["i15"] = seleccionar_15_intermedios(raw15, full)
-            st.session_state["i10"] = seleccionar_10_intermedios(raw10, full)
-
-            st.session_state["c15"], st.session_state["n15"] = generar(st.session_state["i15"], 2)
-            st.session_state["c10"], st.session_state["n10"] = generar(st.session_state["i10"], 3)
+            st.session_state["c6_15"], st.session_state["n6_15"] = generar_6(resultados["15 días"])
 
         if "1 mes" in resultados:
-            base = resultados["1 mes"]
-            full = base.index.tolist()
-
-            raw15 = base.iloc[6:21].index.tolist()
-            raw10 = base.iloc[8:18].index.tolist()
-
-            st.session_state["i15_m"] = seleccionar_15_intermedios(raw15, full)
-            st.session_state["i10_m"] = seleccionar_10_intermedios(raw10, full)
-
-            st.session_state["c15_m"], st.session_state["n15_m"] = generar(st.session_state["i15_m"], 2)
-            st.session_state["c10_m"], st.session_state["n10_m"] = generar(st.session_state["i10_m"], 3)
+            st.session_state["c6_m"], st.session_state["n6_m"] = generar_6(resultados["1 mes"])
 
 # =========================================
 # TABLA RESULTADOS
 # =========================================
 if "resultados" in st.session_state:
-
     r = st.session_state["resultados"]
 
     st.markdown("---")
@@ -252,6 +312,7 @@ if "resultados" in st.session_state:
 
     for i in range(28):
         html += "<tr>"
+
         for col in r:
             if i < len(r[col]):
                 n = r[col].index[i]
@@ -259,18 +320,18 @@ if "resultados" in st.session_state:
                 html += f"<td>{n} <span style='color:#888'>({f})</span></td>"
             else:
                 html += "<td></td>"
+
         html += "</tr>"
 
     html += "</table>"
+
     st.markdown(html, unsafe_allow_html=True)
 
 # =========================================
-# DISPLAY
+# DISPLAY ORIGINAL
 # =========================================
 def mostrar(titulo, key_c, key_n, key_i, rep, boton):
-
     if key_c in st.session_state:
-
         st.markdown("---")
         st.subheader(titulo)
 
@@ -291,10 +352,48 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
             st.session_state[key_n] = n
 
 # =========================================
-# BLOQUES (ACTUALIZADO)
+# BLOQUES ORIGINALES
 # =========================================
-mostrar("🎯 15 números (15 días)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
-mostrar("🎯 10 números (15 días)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
+mostrar("🎯 15 números (15 días)", "c15", "n15", "i15", 2, "🔄 Generar nuevas (15 días)")
+mostrar("🎯 15 números (1 mes)", "c15_m", "n15_m", "i15_m", 2, "🔄 Generar nuevas (15 números - 1 mes)")
 
-mostrar("🎯 15 números (1 mes)", "c15_m","n15_m","i15_m",2,"🔄 Generar nuevas (15 números - 1 mes)")
-mostrar("🎯 10 números (1 mes)", "c10_m","n10_m","i10_m",3,"🔄 Generar nuevas (10 números - 1 mes)")
+# =========================================
+# DISPLAY 6 COMBINACIONES
+# =========================================
+def mostrar_6(titulo, key_c, key_n, boton, balance):
+    if key_c in st.session_state:
+        st.markdown("---")
+        st.subheader(titulo)
+
+        if st.session_state[key_c]:
+            st.info(f"Nivel: {st.session_state[key_n]}")
+            for i, c in enumerate(st.session_state[key_c], 1):
+                st.write(f"{i}: {c}")
+        else:
+            st.warning("No fue posible generar")
+
+        if st.button(boton, key=boton):
+            c, n = generar_6(balance)
+            st.session_state[key_c] = c
+            st.session_state[key_n] = n
+
+if "resultados" in st.session_state:
+    r = st.session_state["resultados"]
+
+    if "15 días" in r:
+        mostrar_6(
+            "🔥 6 combinaciones (15 días)",
+            "c6_15",
+            "n6_15",
+            "🔄 Generar nuevas (6 - 15 días)",
+            r["15 días"]
+        )
+
+    if "1 mes" in r:
+        mostrar_6(
+            "🔥 6 combinaciones (1 mes)",
+            "c6_m",
+            "n6_m",
+            "🔄 Generar nuevas (6 - 1 mes)",
+            r["1 mes"]
+        )
