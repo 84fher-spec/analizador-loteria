@@ -15,11 +15,8 @@ st.set_page_config(
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
-# FUNCIONES BASE
+# FUNCIONES DE VALIDACIÓN
 # =========================================
-def decenas_ok(comb, min_decenas=3):
-    return len(set(n // 10 for n in comb)) >= min_decenas
-
 def pares_nones_ok(comb):
     pares = sum(n % 2 == 0 for n in comb)
     return pares in [2, 3]
@@ -28,192 +25,82 @@ def contar_consecutivos(comb):
     comb = sorted(comb)
     return sum(1 for i in range(len(comb) - 1) if comb[i] + 1 == comb[i + 1])
 
-# =========================================
-# CLASIFICACIÓN
-# =========================================
-def clasificar_numeros(nums):
-    unidades = [n for n in nums if 1 <= n <= 9]
-    decenas = [n for n in nums if 10 <= n <= 19]
-    veintenas = [n for n in nums if 20 <= n <= 28]
-    return unidades, decenas, veintenas
+def decenas_ok(comb, min_decenas=3):
+    return len(set(n // 10 for n in comb)) >= min_decenas
 
 # =========================================
-# SELECCIÓN POR GRUPO (con fallback global)
+# GENERADOR
 # =========================================
-def seleccionar_grupo(candidatos, todos, cantidad):
-    candidatos = list(set(candidatos))
-    todos = list(set(todos))
+def generar_combinaciones(top6, bottom6, intermedios):
 
-    if len(candidatos) >= cantidad:
-        return random.sample(candidatos, cantidad)
-
-    faltan = cantidad - len(candidatos)
-    resto = [n for n in todos if n not in candidatos]
-    seleccion_extra = random.sample(resto, min(faltan, len(resto)))
-
-    resultado = candidatos + seleccion_extra
-
-    while len(resultado) < cantidad:
-        resultado.append(random.choice(todos))
-
-    return resultado[:cantidad]
-
-# =========================================
-# 15 NÚMEROS (5-5-5 EXACTO)
-# =========================================
-def seleccionar_15_intermedios(base, full):
-    u_base, d_base, v_base = clasificar_numeros(base)
-    u_full, d_full, v_full = clasificar_numeros(full)
-
-    sel_u = seleccionar_grupo(u_base, u_full, 5)
-    sel_d = seleccionar_grupo(d_base, d_full, 5)
-    sel_v = seleccionar_grupo(v_base, v_full, 5)
-
-    return sel_u + sel_d + sel_v
-
-# =========================================
-# GENERADOR ORIGINAL
-# =========================================
-def generar(pool_base, repeticiones):
-    total_nums = len(pool_base)
-    num_combinaciones = total_nums // 5
-
-    def generar_nivel(nivel):
-        for _ in range(5000):
-            pool = pool_base[:]
-            random.shuffle(pool)
-
-            temp = []
-            valido = True
-
-            for i in range(num_combinaciones):
-                comb = sorted(pool[i * 5:(i + 1) * 5])
-
-                if len(set(comb)) < 5:
-                    valido = False
-                    break
-
-                if nivel == 1:
-                    if not pares_nones_ok(comb):
-                        valido = False
-                        break
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-
-                elif nivel == 2:
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-
-                elif nivel == 3:
-                    if contar_consecutivos(comb) > 1:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 2):
-                        valido = False
-                        break
-
-                temp.append(comb)
-
-            if valido and len(set(tuple(c) for c in temp)) == num_combinaciones:
-                return temp, nivel
-
-        return None, None
-
-    for nivel in [1, 2, 3]:
-        r, n = generar_nivel(nivel)
-        if r:
-            return r, n
-
-    return None, None
-
-# =========================================
-# GENERADOR 6 (OPTIMIZADO)
-# =========================================
-def generar_6(balance):
-    frecuencias = balance
-    max_freq = frecuencias.max()
-
-    top_real = frecuencias[frecuencias >= max_freq - 1].index.tolist()
-    if len(top_real) < 4:
-        top_real = frecuencias.head(4).index.tolist()
-
-    top_extendido = frecuencias.head(10).index.tolist()
     base_nums = list(range(1, 29))
 
-    def construir_pool(top_usar):
-        repetidos = random.sample(top_usar, 2)
-        pool = base_nums + repetidos
-        random.shuffle(pool)
-        return pool
+    def construir_base(repetidos):
+        combs = [[] for _ in range(6)]
 
-    def dividir_pool(pool):
-        return [sorted(pool[i * 5:(i + 1) * 5]) for i in range(6)]
+        restantes = [n for n in top6 if n not in repetidos]
+        tops_final = repetidos + random.sample(restantes, 4)
+        random.shuffle(tops_final)
+
+        for i in range(6):
+            combs[i].append(tops_final[i])
+
+        bottoms = random.sample(bottom6, 6)
+        for i in range(6):
+            combs[i].append(bottoms[i])
+
+        mids = random.sample(intermedios, 12)
+        idx = 0
+        for i in range(6):
+            for _ in range(2):
+                combs[i].append(mids[idx])
+                idx += 1
+
+        usados = set(n for c in combs for n in c)
+        libres = [n for n in base_nums if n not in usados]
+
+        if len(libres) < 6:
+            faltan = 6 - len(libres)
+            libres.extend(random.sample(base_nums, faltan))
+
+        random.shuffle(libres)
+
+        for i in range(6):
+            combs[i].append(libres[i])
+
+        return [sorted(c) for c in combs]
+
+    def validar_suave(comb, nivel):
+        if nivel == 1:
+            if not pares_nones_ok(comb): return False
+            if contar_consecutivos(comb) > 0: return False
+            if not decenas_ok(comb, 3): return False
+        elif nivel == 2:
+            if contar_consecutivos(comb) > 1: return False
+            if not decenas_ok(comb, 2): return False
+        elif nivel == 3:
+            if contar_consecutivos(comb) > 2: return False
+        return True
+
+    def validar_global(combs):
+        plano = [n for c in combs for n in c]
+        conteo = pd.Series(plano).value_counts()
+        return len(conteo) == 28 and sum(v == 2 for v in conteo) == 2
 
     for nivel in [1, 2, 3]:
-        top_usar = top_real if nivel < 3 else top_extendido
+        for _ in range(2000):
+            repetidos = random.sample(top6, 2)
+            combs = construir_base(repetidos)
 
-        for _ in range(3000):
-            pool = construir_pool(top_usar)
-            combinaciones = dividir_pool(pool)
-
-            plano = [n for c in combinaciones for n in c]
-            conteo = pd.Series(plano).value_counts()
-
-            if len(conteo) != 28:
+            if not validar_global(combs):
                 continue
 
-            if not all(v in [1, 2] for v in conteo):
-                continue
+            validas = [c for c in combs if validar_suave(c, nivel)]
 
-            if sum(v == 2 for v in conteo) != 2:
-                continue
+            if len(validas) >= 4:
+                return combs, nivel
 
-            valido = True
-
-            for comb in combinaciones:
-                if len(set(comb)) < 5:
-                    valido = False
-                    break
-
-                if nivel == 1:
-                    if not pares_nones_ok(comb):
-                        valido = False
-                        break
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-
-                elif nivel == 2:
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-
-                elif nivel == 3:
-                    if contar_consecutivos(comb) > 1:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 2):
-                        valido = False
-                        break
-
-            if valido:
-                return combinaciones, nivel
-
-    return None, None
+    return construir_base(random.sample(top6, 2)), 3
 
 # =========================================
 # CARGA CSV
@@ -231,6 +118,9 @@ if archivo is not None:
         st.error("❌ No hay fechas válidas en el archivo.")
         st.stop()
 
+    # =========================================
+    # REGISTRO MANUAL (RESTAURADO)
+    # =========================================
     st.markdown("---")
     st.subheader("✍️ Agregar registro manual")
 
@@ -264,42 +154,23 @@ if archivo is not None:
         fecha_base = df_calculo["fecha"].max()
 
         def calcular(df_bloque):
-            nums = df_bloque[["r1", "r2", "r3", "r4", "r5"]]
-            nums = nums.apply(pd.to_numeric, errors="coerce")
-
+            nums = df_bloque[["r1","r2","r3","r4","r5"]]
             nums = pd.Series(nums.values.flatten()).dropna().astype(int)
-
             conteo = nums.value_counts()
-            conteo = conteo.reindex(range(1, 29), fill_value=0)
-            conteo = conteo.sort_values(ascending=False)
-
-            return conteo.head(28)
-
-        etiquetas = {
-            "15 días": 15,
-            "1 mes": 30,
-            "2 meses": 60,
-            "3 meses": 90
-        }
+            conteo = conteo.reindex(range(1,29), fill_value=0)
+            return conteo.sort_values(ascending=False)
 
         resultados = {}
 
-        for et, d in etiquetas.items():
+        for et, d in {"15 días":15, "1 mes":30, "2 meses":60, "3 meses":90}.items():
             datos = df_calculo[df_calculo["fecha"] >= fecha_base - timedelta(days=d)]
-
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
         st.session_state["resultados"] = resultados
 
-        if "15 días" in resultados:
-            st.session_state["c6_15"], st.session_state["n6_15"] = generar_6(resultados["15 días"])
-
-        if "1 mes" in resultados:
-            st.session_state["c6_m"], st.session_state["n6_m"] = generar_6(resultados["1 mes"])
-
 # =========================================
-# TABLA RESULTADOS
+# TABLA ORIGINAL
 # =========================================
 if "resultados" in st.session_state:
     r = st.session_state["resultados"]
@@ -312,88 +183,67 @@ if "resultados" in st.session_state:
 
     for i in range(28):
         html += "<tr>"
-
         for col in r:
-            if i < len(r[col]):
-                n = r[col].index[i]
-                f = r[col].iloc[i]
-                html += f"<td>{n} <span style='color:#888'>({f})</span></td>"
-            else:
-                html += "<td></td>"
-
+            n = r[col].index[i]
+            f = r[col].iloc[i]
+            html += f"<td>{n} ({f})</td>"
         html += "</tr>"
 
     html += "</table>"
-
     st.markdown(html, unsafe_allow_html=True)
 
-# =========================================
-# DISPLAY ORIGINAL
-# =========================================
-def mostrar(titulo, key_c, key_n, key_i, rep, boton):
-    if key_c in st.session_state:
-        st.markdown("---")
-        st.subheader(titulo)
-
-        if key_i in st.session_state:
-            base_nums = sorted(st.session_state[key_i])
-            st.write(f"Base seleccionada: {base_nums}")
-
-        if st.session_state[key_c]:
-            st.info(f"Nivel: {st.session_state[key_n]}")
-            for i, c in enumerate(st.session_state[key_c], 1):
-                st.write(f"{i}: {c}")
-        else:
-            st.warning("No fue posible generar las combinaciones")
-
-        if st.button(boton, key=boton):
-            c, n = generar(st.session_state[key_i], rep)
-            st.session_state[key_c] = c
-            st.session_state[key_n] = n
-
-# =========================================
-# BLOQUES ORIGINALES
-# =========================================
-mostrar("🎯 15 números (15 días)", "c15", "n15", "i15", 2, "🔄 Generar nuevas (15 días)")
-mostrar("🎯 15 números (1 mes)", "c15_m", "n15_m", "i15_m", 2, "🔄 Generar nuevas (15 números - 1 mes)")
-
-# =========================================
-# DISPLAY 6 COMBINACIONES
-# =========================================
-def mostrar_6(titulo, key_c, key_n, boton, balance):
-    if key_c in st.session_state:
-        st.markdown("---")
-        st.subheader(titulo)
-
-        if st.session_state[key_c]:
-            st.info(f"Nivel: {st.session_state[key_n]}")
-            for i, c in enumerate(st.session_state[key_c], 1):
-                st.write(f"{i}: {c}")
-        else:
-            st.warning("No fue posible generar")
-
-        if st.button(boton, key=boton):
-            c, n = generar_6(balance)
-            st.session_state[key_c] = c
-            st.session_state[key_n] = n
-
-if "resultados" in st.session_state:
-    r = st.session_state["resultados"]
-
+    # ===== 15 DÍAS =====
     if "15 días" in r:
-        mostrar_6(
-            "🔥 6 combinaciones (15 días)",
-            "c6_15",
-            "n6_15",
-            "🔄 Generar nuevas (6 - 15 días)",
-            r["15 días"]
-        )
+        base = r["15 días"]
+        top6 = base.head(6).index.tolist()
+        bottom6 = base.tail(6).index.tolist()
+        inter = base.iloc[6:-6].index.tolist()
 
+        st.markdown("---")
+        st.markdown("<h4>📅 Análisis 15 días</h4>", unsafe_allow_html=True)
+
+        st.write(f"Top 6 frecuentes: {top6}")
+        st.write(f"Top 6 menos frecuentes: {bottom6}")
+        st.write(f"Intermedios (16): {inter}")
+
+        st.markdown("---")
+        st.markdown("<h4>🎯 6 combinaciones (15 días)</h4>", unsafe_allow_html=True)
+
+        if "c15" not in st.session_state:
+            c,n = generar_combinaciones(top6,bottom6,inter)
+            st.session_state["c15"], st.session_state["n15"] = c,n
+
+        st.info(f"Nivel: {st.session_state['n15']}")
+        for i,c in enumerate(st.session_state["c15"],1):
+            st.write(f"{i}: {c}")
+
+        if st.button("🔄 Generar nuevas (15 días)"):
+            st.session_state["c15"], st.session_state["n15"] = generar_combinaciones(top6,bottom6,inter)
+
+    # ===== 1 MES =====
     if "1 mes" in r:
-        mostrar_6(
-            "🔥 6 combinaciones (1 mes)",
-            "c6_m",
-            "n6_m",
-            "🔄 Generar nuevas (6 - 1 mes)",
-            r["1 mes"]
-        )
+        base = r["1 mes"]
+        top6 = base.head(6).index.tolist()
+        bottom6 = base.tail(6).index.tolist()
+        inter = base.iloc[6:-6].index.tolist()
+
+        st.markdown("---")
+        st.markdown("<h4>📅 Análisis 1 mes</h4>", unsafe_allow_html=True)
+
+        st.write(f"Top 6 frecuentes: {top6}")
+        st.write(f"Top 6 menos frecuentes: {bottom6}")
+        st.write(f"Intermedios (16): {inter}")
+
+        st.markdown("---")
+        st.markdown("<h4>🎯 6 combinaciones (1 mes)</h4>", unsafe_allow_html=True)
+
+        if "c1m" not in st.session_state:
+            c,n = generar_combinaciones(top6,bottom6,inter)
+            st.session_state["c1m"], st.session_state["n1m"] = c,n
+
+        st.info(f"Nivel: {st.session_state['n1m']}")
+        for i,c in enumerate(st.session_state["c1m"],1):
+            st.write(f"{i}: {c}")
+
+        if st.button("🔄 Generar nuevas (1 mes)"):
+            st.session_state["c1m"], st.session_state["n1m"] = generar_combinaciones(top6,bottom6,inter)
