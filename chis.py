@@ -7,6 +7,7 @@ import random
 # =========================================
 # CONFIGURACIÓN GENERAL
 # =========================================
+
 st.set_page_config(
     page_title="Analizador de Frecuencias",
     layout="centered"
@@ -17,6 +18,7 @@ st.title("📊 Analizador de Frecuencias por Sorteo")
 # =========================================
 # FUNCIONES BASE
 # =========================================
+
 def decenas_ok(comb, min_decenas=3):
     return len(set(n // 10 for n in comb)) >= min_decenas
 
@@ -31,6 +33,7 @@ def contar_consecutivos(comb):
 # =========================================
 # CLASIFICACIÓN
 # =========================================
+
 def clasificar_numeros(nums):
     unidades = [n for n in nums if 1 <= n <= 9]
     decenas = [n for n in nums if 10 <= n <= 19]
@@ -40,6 +43,7 @@ def clasificar_numeros(nums):
 # =========================================
 # SELECCIÓN POR GRUPO (con fallback global)
 # =========================================
+
 def seleccionar_grupo(candidatos, todos, cantidad):
     candidatos = list(set(candidatos))
     todos = list(set(todos))
@@ -61,6 +65,7 @@ def seleccionar_grupo(candidatos, todos, cantidad):
 # =========================================
 # 15 NÚMEROS (5-5-5 EXACTO)
 # =========================================
+
 def seleccionar_15_intermedios(base, full):
 
     u_base, d_base, v_base = clasificar_numeros(base)
@@ -75,6 +80,7 @@ def seleccionar_15_intermedios(base, full):
 # =========================================
 # 10 NÚMEROS (3-4-3 EXACTO)
 # =========================================
+
 def seleccionar_10_intermedios(base, full):
 
     u_base, d_base, v_base = clasificar_numeros(base)
@@ -89,6 +95,7 @@ def seleccionar_10_intermedios(base, full):
 # =========================================
 # GENERADOR (MODIFICADO)
 # =========================================
+
 def generar(pool_base, repeticiones):
 
     total_nums = len(pool_base)
@@ -140,6 +147,7 @@ def generar(pool_base, repeticiones):
 # =========================================
 # CARGA CSV
 # =========================================
+
 archivo = st.file_uploader("📂 Selecciona el archivo CSV")
 
 if archivo is not None:
@@ -196,10 +204,11 @@ if archivo is not None:
             return conteo.head(28)
 
         etiquetas = {
+            "1 semana": 7,
             "15 días": 15,
             "1 mes": 30,
-            "2 meses": 60,
-            "3 meses": 90
+            "1.5 meses": 45,
+            "2 meses": 60
         }
 
         resultados = {}
@@ -240,6 +249,7 @@ if archivo is not None:
 # =========================================
 # TABLA RESULTADOS
 # =========================================
+
 if "resultados" in st.session_state:
 
     r = st.session_state["resultados"]
@@ -267,6 +277,7 @@ if "resultados" in st.session_state:
 # =========================================
 # DISPLAY
 # =========================================
+
 def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 
     if key_c in st.session_state:
@@ -293,6 +304,7 @@ def mostrar(titulo, key_c, key_n, key_i, rep, boton):
 # =========================================
 # BLOQUES (ACTUALIZADO)
 # =========================================
+
 mostrar("🎯 15 números (15 días)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
 mostrar("🎯 10 números (15 días)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
 
