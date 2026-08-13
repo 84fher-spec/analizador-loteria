@@ -246,31 +246,72 @@ if "resultados" in st.session_state:
 
             serie = r[periodo]
 
-            columnas = st.columns(3)
+            # =========================================
+            # 3 COLUMNAS FIJAS EN UNA SOLA FILA
+            # SOLO PARA RESULTADOS
+            # =========================================
 
-            for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
+            bloques_html = ""
+
+            for nombre_grupo, rango in grupos.items():
 
                 grupo = serie[serie.index.isin(rango)]
                 grupo = grupo.sort_values(ascending=False)
 
-                with columnas[idx]:
+                lista_html = ""
 
-                    # Encabezado simple
-                    st.markdown(
-                        f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
-                        unsafe_allow_html=True
+                for numero, frecuencia in grupo.items():
+                    lista_html += (
+                        f"<div style='"
+                        f"text-align:center;"
+                        f"margin:2px 0;"
+                        f"white-space:nowrap;"
+                        f"font-size:14px;"
+                        f"line-height:1.25;"
+                        f"'>"
+                        f"<span style='font-weight:600;'>{numero}</span> "
+                        f"<span style='color:#888;'>({frecuencia})</span>"
+                        f"</div>"
                     )
 
-                    # Lista compacta
-                    html = ""
-                    for numero, frecuencia in grupo.items():
-                        html += (
-                            f"<div style='text-align:center; margin:2px 0;'>"
-                            f"<span style='font-weight:600;'>{numero}</span> "
-                            f"<span style='color:#888;'>({frecuencia})</span>"
-                            f"</div>"
-                        )
+                bloques_html += (
+                    f"<div style='"
+                    f"flex:1 1 0;"
+                    f"min-width:0;"
+                    f"width:33.333%;"
+                    f"box-sizing:border-box;"
+                    f"padding:0 2px;"
+                    f"'>"
+                    f"<div style='"
+                    f"text-align:center;"
+                    f"font-weight:bold;"
+                    f"margin-bottom:6px;"
+                    f"white-space:nowrap;"
+                    f"font-size:14px;"
+                    f"'>"
+                    f"{nombre_grupo}"
+                    f"</div>"
+                    f"{lista_html}"
+                    f"</div>"
+                )
 
-                    st.markdown(html, unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div style="
+                    display:flex;
+                    flex-direction:row;
+                    flex-wrap:nowrap;
+                    width:100%;
+                    max-width:100%;
+                    box-sizing:border-box;
+                    overflow:hidden;
+                    align-items:flex-start;
+                    justify-content:space-between;
+                ">
+                    {bloques_html}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
             st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
