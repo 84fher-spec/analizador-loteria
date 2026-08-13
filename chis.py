@@ -24,20 +24,25 @@ st.markdown("""
 <style>
 @media (max-width: 768px) {
 
-    /* SOLO afecta al contenedor de resultados */
-    .st-key-resultados_columnas [data-testid="stHorizontalBlock"] {
+    /* SOLO afecta a los contenedores de resultados */
+    [class*="st-key-resultados_"] [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
         flex-wrap: nowrap !important;
+        width: 100% !important;
         gap: 0.15rem !important;
     }
 
-    .st-key-resultados_columnas [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    [class*="st-key-resultados_"] [data-testid="stHorizontalBlock"] > [data-testid="column"] {
         min-width: 0 !important;
         width: 33.3333% !important;
         max-width: 33.3333% !important;
-        flex: 1 1 33.3333% !important;
+        flex: 0 0 33.3333% !important;
     }
 
-    .st-key-resultados_columnas [data-testid="column"] > div {
+    [class*="st-key-resultados_"] [data-testid="column"] > div {
+        width: 100% !important;
+        min-width: 0 !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
@@ -277,10 +282,17 @@ if "resultados" in st.session_state:
             serie = r[periodo]
 
             # =========================================
-            # CONTENEDOR EXCLUSIVO DE LAS 3 COLUMNAS
+            # CONTENEDOR ÚNICO PARA CADA PERIODO
             # =========================================
 
-            with st.container(key="resultados_columnas"):
+            if periodo == "1 semana":
+                key_resultados = "resultados_1_semana"
+            elif periodo == "15 días":
+                key_resultados = "resultados_15_dias"
+            else:
+                key_resultados = "resultados_1_mes"
+
+            with st.container(key=key_resultados):
 
                 columnas = st.columns(3)
 
@@ -299,6 +311,7 @@ if "resultados" in st.session_state:
 
                         # Lista compacta
                         html = ""
+
                         for numero, frecuencia in grupo.items():
                             html += (
                                 f"<div style='text-align:center; margin:2px 0;'>"
