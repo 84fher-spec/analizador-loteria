@@ -266,7 +266,7 @@ if "resultados" in st.session_state:
                         f"text-align:center;"
                         f"margin:2px 0;"
                         f"white-space:nowrap;"
-                        f"font-size:14px;"
+                        f"font-size:17px;"
                         f"line-height:1.25;"
                         f"'>"
                         f"<span style='font-weight:600;'>{numero}</span> "
