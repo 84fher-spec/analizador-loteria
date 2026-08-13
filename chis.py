@@ -16,6 +16,36 @@ st.set_page_config(
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
+# RESPONSIVE SOLO PARA LAS 3 COLUMNAS
+# DE RESULTADOS
+# =========================================
+
+st.markdown("""
+<style>
+@media (max-width: 768px) {
+
+    /* SOLO afecta al contenedor de resultados */
+    .st-key-resultados_columnas [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        gap: 0.15rem !important;
+    }
+
+    .st-key-resultados_columnas [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        min-width: 0 !important;
+        width: 33.3333% !important;
+        max-width: 33.3333% !important;
+        flex: 1 1 33.3333% !important;
+    }
+
+    .st-key-resultados_columnas [data-testid="column"] > div {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================
 # FUNCIONES BASE
 # =========================================
 
@@ -246,71 +276,37 @@ if "resultados" in st.session_state:
 
             serie = r[periodo]
 
-            # Contenedor exclusivo para las 3 columnas de resultados
-            st.markdown(
-                "<div class='resultados-columnas'>",
-                unsafe_allow_html=True
-            )
+            # =========================================
+            # CONTENEDOR EXCLUSIVO DE LAS 3 COLUMNAS
+            # =========================================
 
-            columnas = st.columns(3)
+            with st.container(key="resultados_columnas"):
 
-            for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
+                columnas = st.columns(3)
 
-                grupo = serie[serie.index.isin(rango)]
-                grupo = grupo.sort_values(ascending=False)
+                for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
 
-                with columnas[idx]:
+                    grupo = serie[serie.index.isin(rango)]
+                    grupo = grupo.sort_values(ascending=False)
 
-                    # Encabezado simple
-                    st.markdown(
-                        f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
-                        unsafe_allow_html=True
-                    )
+                    with columnas[idx]:
 
-                    # Lista compacta
-                    html = ""
-                    for numero, frecuencia in grupo.items():
-                        html += (
-                            f"<div style='text-align:center; margin:2px 0;'>"
-                            f"<span style='font-weight:600;'>{numero}</span> "
-                            f"<span style='color:#888;'>({frecuencia})</span>"
-                            f"</div>"
+                        # Encabezado simple
+                        st.markdown(
+                            f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
+                            unsafe_allow_html=True
                         )
 
-                    st.markdown(html, unsafe_allow_html=True)
+                        # Lista compacta
+                        html = ""
+                        for numero, frecuencia in grupo.items():
+                            html += (
+                                f"<div style='text-align:center; margin:2px 0;'>"
+                                f"<span style='font-weight:600;'>{numero}</span> "
+                                f"<span style='color:#888;'>({frecuencia})</span>"
+                                f"</div>"
+                            )
 
-            st.markdown(
-                "</div>",
-                unsafe_allow_html=True
-            )
+                        st.markdown(html, unsafe_allow_html=True)
 
             st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
-
-
-# =========================================
-# RESPONSIVE SOLO PARA RESULTADOS
-# =========================================
-
-st.markdown("""
-<style>
-@media (max-width: 768px) {
-
-    /* SOLO afecta los bloques de resultados */
-    .resultados-columnas + div [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        gap: 0.25rem !important;
-    }
-
-    .resultados-columnas + div [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        min-width: 0 !important;
-        width: 33.3333% !important;
-        flex: 1 1 33.3333% !important;
-    }
-
-    .resultados-columnas + div [data-testid="stHorizontalBlock"] > [data-testid="column"] > div {
-        padding-left: 0.05rem !important;
-        padding-right: 0.05rem !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
