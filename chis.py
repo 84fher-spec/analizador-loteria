@@ -13,41 +13,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# =========================================
-# RESPONSIVE: MANTENER 3 COLUMNAS EN MÓVIL
-# =========================================
-
-st.markdown("""
-<style>
-@media (max-width: 768px) {
-
-    /* Evita que las columnas se bajen en el celular */
-    [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        gap: 0.25rem !important;
-    }
-
-    /* Cada columna ocupa exactamente un tercio */
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        min-width: 0 !important;
-        width: 33.3333% !important;
-        flex: 1 1 33.3333% !important;
-    }
-
-    /* Reduce espacios laterales para aprovechar toda la pantalla */
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] > div {
-        padding-left: 0.05rem !important;
-        padding-right: 0.05rem !important;
-    }
-
-    /* Mantiene los encabezados de los grupos en una sola línea */
-    [data-testid="stHorizontalBlock"] [data-testid="stMarkdownContainer"] {
-        overflow: visible !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
@@ -281,6 +246,12 @@ if "resultados" in st.session_state:
 
             serie = r[periodo]
 
+            # Contenedor exclusivo para las 3 columnas de resultados
+            st.markdown(
+                "<div class='resultados-columnas'>",
+                unsafe_allow_html=True
+            )
+
             columnas = st.columns(3)
 
             for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
@@ -308,4 +279,38 @@ if "resultados" in st.session_state:
 
                     st.markdown(html, unsafe_allow_html=True)
 
+            st.markdown(
+                "</div>",
+                unsafe_allow_html=True
+            )
+
             st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
+
+
+# =========================================
+# RESPONSIVE SOLO PARA RESULTADOS
+# =========================================
+
+st.markdown("""
+<style>
+@media (max-width: 768px) {
+
+    /* SOLO afecta los bloques de resultados */
+    .resultados-columnas + div [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        gap: 0.25rem !important;
+    }
+
+    .resultados-columnas + div [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        min-width: 0 !important;
+        width: 33.3333% !important;
+        flex: 1 1 33.3333% !important;
+    }
+
+    .resultados-columnas + div [data-testid="stHorizontalBlock"] > [data-testid="column"] > div {
+        padding-left: 0.05rem !important;
+        padding-right: 0.05rem !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
