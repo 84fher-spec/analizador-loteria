@@ -206,9 +206,7 @@ if archivo is not None:
         etiquetas = {
             "1 semana": 7,
             "15 días": 15,
-            "1 mes": 30,
-            "1.5 meses": 45,
-            "2 meses": 60
+            "1 mes": 30
         }
 
         resultados = {}
@@ -220,34 +218,8 @@ if archivo is not None:
 
         st.session_state["resultados"] = resultados
 
-        if "15 días" in resultados:
-            base = resultados["15 días"]
-            full = base.index.tolist()
-
-            raw15 = base.iloc[6:21].index.tolist()
-            raw10 = base.iloc[8:18].index.tolist()
-
-            st.session_state["i15"] = seleccionar_15_intermedios(raw15, full)
-            st.session_state["i10"] = seleccionar_10_intermedios(raw10, full)
-
-            st.session_state["c15"], st.session_state["n15"] = generar(st.session_state["i15"], 2)
-            st.session_state["c10"], st.session_state["n10"] = generar(st.session_state["i10"], 3)
-
-        if "1 mes" in resultados:
-            base = resultados["1 mes"]
-            full = base.index.tolist()
-
-            raw15 = base.iloc[6:21].index.tolist()
-            raw10 = base.iloc[8:18].index.tolist()
-
-            st.session_state["i15_m"] = seleccionar_15_intermedios(raw15, full)
-            st.session_state["i10_m"] = seleccionar_10_intermedios(raw10, full)
-
-            st.session_state["c15_m"], st.session_state["n15_m"] = generar(st.session_state["i15_m"], 2)
-            st.session_state["c10_m"], st.session_state["n10_m"] = generar(st.session_state["i10_m"], 3)
-
 # =========================================
-# TABLA RESULTADOS
+# RESULTADOS AGRUPADOS POR DECENAS
 # =========================================
 
 if "resultados" in st.session_state:
@@ -255,58 +227,50 @@ if "resultados" in st.session_state:
     r = st.session_state["resultados"]
 
     st.markdown("---")
-    st.subheader("📊 Top 28 por periodo")
+    st.subheader("📊 Resultados por periodo")
 
-    html = "<table style='width:100%; text-align:center;'>"
-    html += "<tr>" + "".join(f"<th>{c}</th>" for c in r) + "</tr>"
+    periodos_mostrar = ["1 semana", "15 días", "1 mes"]
 
-    for i in range(28):
-        html += "<tr>"
-        for col in r:
-            if i < len(r[col]):
-                n = r[col].index[i]
-                f = r[col].iloc[i]
-                html += f"<td>{n} <span style='color:#888'>({f})</span></td>"
-            else:
-                html += "<td></td>"
-        html += "</tr>"
+    grupos = {
+        "1-9": range(1, 10),
+        "10-19": range(10, 20),
+        "20-28": range(20, 29)
+    }
 
-    html += "</table>"
-    st.markdown(html, unsafe_allow_html=True)
+    for periodo in periodos_mostrar:
 
-# =========================================
-# DISPLAY
-# =========================================
+        if periodo in r:
 
-def mostrar(titulo, key_c, key_n, key_i, rep, boton):
+            # Título más pequeño
+            st.markdown(f"#### 📅 {periodo}")
 
-    if key_c in st.session_state:
+            serie = r[periodo]
 
-        st.markdown("---")
-        st.subheader(titulo)
+            columnas = st.columns(3)
 
-        if key_i in st.session_state:
-            base_nums = sorted(st.session_state[key_i])
-            st.write(f"Base seleccionada: {base_nums}")
+            for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
 
-        if st.session_state[key_c]:
-            st.info(f"Nivel: {st.session_state[key_n]}")
-            for i, c in enumerate(st.session_state[key_c], 1):
-                st.write(f"{i}: {c}")
-        else:
-            st.warning("No fue posible generar las combinaciones")
+                grupo = serie[serie.index.isin(rango)]
+                grupo = grupo.sort_values(ascending=False)
 
-        if st.button(boton, key=boton):
-            c, n = generar(st.session_state[key_i], rep)
-            st.session_state[key_c] = c
-            st.session_state[key_n] = n
+                with columnas[idx]:
 
-# =========================================
-# BLOQUES (ACTUALIZADO)
-# =========================================
+                    # Encabezado simple
+                    st.markdown(
+                        f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
+                        unsafe_allow_html=True
+                    )
 
-mostrar("🎯 15 números (15 días)", "c15","n15","i15",2,"🔄 Generar nuevas (15 días)")
-mostrar("🎯 10 números (15 días)", "c10","n10","i10",3,"🔄 Generar nuevas (10 días)")
+                    # Lista compacta
+                    html = ""
+                    for numero, frecuencia in grupo.items():
+                        html += (
+                            f"<div style='text-align:center; margin:2px 0;'>"
+                            f"<span style='font-weight:600;'>{numero}</span> "
+                            f"<span style='color:#888;'>({frecuencia})</span>"
+                            f"</div>"
+                        )
 
-mostrar("🎯 15 números (1 mes)", "c15_m","n15_m","i15_m",2,"🔄 Generar nuevas (15 números - 1 mes)")
-mostrar("🎯 10 números (1 mes)", "c10_m","n10_m","i10_m",3,"🔄 Generar nuevas (10 números - 1 mes)")
+                    st.markdown(html, unsafe_allow_html=True)
+
+            st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
