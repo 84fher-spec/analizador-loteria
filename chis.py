@@ -13,6 +13,41 @@ st.set_page_config(
     layout="centered"
 )
 
+# =========================================
+# RESPONSIVE: MANTENER 3 COLUMNAS EN MÓVIL
+# =========================================
+
+st.markdown("""
+<style>
+@media (max-width: 768px) {
+
+    /* Evita que las columnas se bajen en el celular */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        gap: 0.25rem !important;
+    }
+
+    /* Cada columna ocupa exactamente un tercio */
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        min-width: 0 !important;
+        width: 33.3333% !important;
+        flex: 1 1 33.3333% !important;
+    }
+
+    /* Reduce espacios laterales para aprovechar toda la pantalla */
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] > div {
+        padding-left: 0.05rem !important;
+        padding-right: 0.05rem !important;
+    }
+
+    /* Mantiene los encabezados de los grupos en una sola línea */
+    [data-testid="stHorizontalBlock"] [data-testid="stMarkdownContainer"] {
+        overflow: visible !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
