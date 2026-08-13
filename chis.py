@@ -16,41 +16,6 @@ st.set_page_config(
 st.title("📊 Analizador de Frecuencias por Sorteo")
 
 # =========================================
-# RESPONSIVE SOLO PARA LAS 3 COLUMNAS
-# DE RESULTADOS
-# =========================================
-
-st.markdown("""
-<style>
-@media (max-width: 768px) {
-
-    /* SOLO afecta a los contenedores de resultados */
-    [class*="st-key-resultados_"] [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        width: 100% !important;
-        gap: 0.15rem !important;
-    }
-
-    [class*="st-key-resultados_"] [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        min-width: 0 !important;
-        width: 33.3333% !important;
-        max-width: 33.3333% !important;
-        flex: 0 0 33.3333% !important;
-    }
-
-    [class*="st-key-resultados_"] [data-testid="column"] > div {
-        width: 100% !important;
-        min-width: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
-# =========================================
 # FUNCIONES BASE
 # =========================================
 
@@ -281,45 +246,31 @@ if "resultados" in st.session_state:
 
             serie = r[periodo]
 
-            # =========================================
-            # CONTENEDOR ÚNICO PARA CADA PERIODO
-            # =========================================
+            columnas = st.columns(3)
 
-            if periodo == "1 semana":
-                key_resultados = "resultados_1_semana"
-            elif periodo == "15 días":
-                key_resultados = "resultados_15_dias"
-            else:
-                key_resultados = "resultados_1_mes"
+            for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
 
-            with st.container(key=key_resultados):
+                grupo = serie[serie.index.isin(rango)]
+                grupo = grupo.sort_values(ascending=False)
 
-                columnas = st.columns(3)
+                with columnas[idx]:
 
-                for idx, (nombre_grupo, rango) in enumerate(grupos.items()):
+                    # Encabezado simple
+                    st.markdown(
+                        f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
+                        unsafe_allow_html=True
+                    )
 
-                    grupo = serie[serie.index.isin(rango)]
-                    grupo = grupo.sort_values(ascending=False)
-
-                    with columnas[idx]:
-
-                        # Encabezado simple
-                        st.markdown(
-                            f"<div style='text-align:center; font-weight:bold; margin-bottom:6px;'>{nombre_grupo}</div>",
-                            unsafe_allow_html=True
+                    # Lista compacta
+                    html = ""
+                    for numero, frecuencia in grupo.items():
+                        html += (
+                            f"<div style='text-align:center; margin:2px 0;'>"
+                            f"<span style='font-weight:600;'>{numero}</span> "
+                            f"<span style='color:#888;'>({frecuencia})</span>"
+                            f"</div>"
                         )
 
-                        # Lista compacta
-                        html = ""
-
-                        for numero, frecuencia in grupo.items():
-                            html += (
-                                f"<div style='text-align:center; margin:2px 0;'>"
-                                f"<span style='font-weight:600;'>{numero}</span> "
-                                f"<span style='color:#888;'>({frecuencia})</span>"
-                                f"</div>"
-                            )
-
-                        st.markdown(html, unsafe_allow_html=True)
+                    st.markdown(html, unsafe_allow_html=True)
 
             st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
