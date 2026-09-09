@@ -216,6 +216,12 @@ if archivo is not None:
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
+        # =========================================
+        # HISTÓRICO COMPLETO
+        # =========================================
+
+        resultados["Histórico completo"] = calcular(df_calculo)
+
         st.session_state["resultados"] = resultados
 
 # =========================================
@@ -229,7 +235,12 @@ if "resultados" in st.session_state:
     st.markdown("---")
     st.subheader("📊 Resultados por periodo")
 
-    periodos_mostrar = ["1 semana", "15 días", "1 mes"]
+    periodos_mostrar = [
+        "1 semana",
+        "15 días",
+        "1 mes",
+        "Histórico completo"
+    ]
 
     grupos = {
         "1-9": range(1, 10),
