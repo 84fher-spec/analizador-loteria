@@ -204,7 +204,7 @@ if archivo is not None:
             return conteo.head(28)
 
         etiquetas = {
-            "4 días": 4,
+            "3 días": 3,
             "1 semana": 7,
             "15 días": 15
         }
@@ -236,7 +236,7 @@ if "resultados" in st.session_state:
     st.subheader("📊 Resultados por periodo")
 
     periodos_mostrar = [
-        "4 días",
+        "3 días",
         "1 semana",
         "15 días",
         "Histórico completo"
