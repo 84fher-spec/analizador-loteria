@@ -212,7 +212,7 @@ if archivo is not None:
         resultados = {}
 
         for et, d in etiquetas.items():
-            datos = df_calculo[df_calculo["fecha"] >= fecha_base - timedelta(days=d)]
+            datos = df_calculo[(df_calculo["fecha"] >= fecha_base - timedelta(days=d-1)) & (df_calculo["fecha"] <= fecha_base)]
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
