@@ -145,6 +145,140 @@ def generar(pool_base, repeticiones):
     return None, None
 
 # =========================================
+# GENERAR 3 COMBINACIONES DESDE SELECCIÓN
+# =========================================
+
+def generar_3_combinaciones_semana(numeros):
+
+    numeros = list(dict.fromkeys(int(n) for n in numeros))
+
+    if len(numeros) < 5:
+        return []
+
+    cantidad_total = min(15, len(numeros))
+
+    grupos = {
+        1: [n for n in numeros if 1 <= n <= 9],
+        2: [n for n in numeros if 10 <= n <= 19],
+        3: [n for n in numeros if 20 <= n <= 28]
+    }
+
+    objetivo = cantidad_total
+
+    mejor_seleccion = None
+    mejor_combinaciones = None
+    mejor_puntuacion = None
+
+    for _ in range(5000):
+
+        # -----------------------------------------
+        # SELECCIÓN DE LOS NÚMEROS
+        # -----------------------------------------
+
+        if len(numeros) > objetivo:
+
+            candidatos = numeros[:]
+            random.shuffle(candidatos)
+
+            seleccion = candidatos[:objetivo]
+
+            # Mejoramos la distribución global de decenas
+            # buscando cantidades lo más cercanas posible.
+            mejor_local = None
+            mejor_score_local = None
+
+            for _ in range(100):
+
+                prueba = random.sample(numeros, objetivo)
+
+                cantidades = [
+                    sum(1 for n in prueba if 1 <= n <= 9),
+                    sum(1 for n in prueba if 10 <= n <= 19),
+                    sum(1 for n in prueba if 20 <= n <= 28)
+                ]
+
+                score = max(cantidades) - min(cantidades)
+
+                if mejor_score_local is None or score < mejor_score_local:
+                    mejor_score_local = score
+                    mejor_local = prueba
+
+                    if score == 0:
+                        break
+
+            seleccion = mejor_local
+
+        else:
+            seleccion = numeros[:]
+
+        random.shuffle(seleccion)
+
+        # -----------------------------------------
+        # SEPARAR EN 3 COMBINACIONES
+        # -----------------------------------------
+
+        combinaciones = [
+            seleccion[i:i+5]
+            for i in range(0, len(seleccion), 5)
+        ]
+
+        if len(combinaciones) < 3 or any(len(c) < 5 for c in combinaciones):
+            continue
+
+        combinaciones = [sorted(c) for c in combinaciones]
+
+        # -----------------------------------------
+        # PUNTUACIÓN DE EQUILIBRIO
+        # -----------------------------------------
+
+        cantidades_globales = [
+            sum(1 for n in seleccion if 1 <= n <= 9),
+            sum(1 for n in seleccion if 10 <= n <= 19),
+            sum(1 for n in seleccion if 20 <= n <= 28)
+        ]
+
+        diferencia_global = max(cantidades_globales) - min(cantidades_globales)
+
+        diferencia_combos = 0
+
+        for comb in combinaciones:
+
+            cantidades = [
+                sum(1 for n in comb if 1 <= n <= 9),
+                sum(1 for n in comb if 10 <= n <= 19),
+                sum(1 for n in comb if 20 <= n <= 28)
+            ]
+
+            diferencia_combos += max(cantidades) - min(cantidades)
+
+        concentracion = 0
+
+        for comb in combinaciones:
+
+            cantidades = [
+                sum(1 for n in comb if 1 <= n <= 9),
+                sum(1 for n in comb if 10 <= n <= 19),
+                sum(1 for n in comb if 20 <= n <= 28)
+            ]
+
+            if max(cantidades) >= 4:
+                concentracion += 3
+
+        puntuacion = (
+            diferencia_global * 10
+            + diferencia_combos
+            + concentracion
+        )
+
+        if mejor_puntuacion is None or puntuacion < mejor_puntuacion:
+            mejor_puntuacion = puntuacion
+            mejor_seleccion = seleccion[:]
+            mejor_combinaciones = combinaciones
+
+    return mejor_combinaciones if mejor_combinaciones else []
+
+
+# =========================================
 # CARGA CSV
 # =========================================
 
@@ -204,7 +338,6 @@ if archivo is not None:
             return conteo.head(28)
 
         etiquetas = {
-            "3 días": 3,
             "1 semana": 7,
             "15 días": 15
         }
@@ -212,7 +345,7 @@ if archivo is not None:
         resultados = {}
 
         for et, d in etiquetas.items():
-            datos = df_calculo[(df_calculo["fecha"] >= fecha_base - timedelta(days=d-1)) & (df_calculo["fecha"] <= fecha_base)]
+            datos = df_calculo[df_calculo["fecha"] >= fecha_base - timedelta(days=d)]
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
@@ -236,7 +369,6 @@ if "resultados" in st.session_state:
     st.subheader("📊 Resultados por periodo")
 
     periodos_mostrar = [
-        "3 días",
         "1 semana",
         "15 días",
         "Histórico completo"
@@ -326,3 +458,164 @@ if "resultados" in st.session_state:
             )
 
             st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
+
+# =========================================
+# SELECCIÓN DE NÚMEROS DE UNA SEMANA
+# =========================================
+
+if "resultados" in st.session_state and "1 semana" in st.session_state["resultados"]:
+
+    st.markdown("---")
+    st.subheader("🎯 Selección de números de una semana")
+
+    serie_semana = st.session_state["resultados"]["1 semana"]
+
+    # Descartar números con frecuencia de 0 a 1
+    candidatos = serie_semana[serie_semana >= 2]
+
+    if not candidatos.empty:
+
+        # Obtener las dos frecuencias más altas
+        frecuencias_altas = sorted(candidatos.unique(), reverse=True)[:2]
+
+        # Descartar los números pertenecientes a los niveles
+        # de frecuencia más altos 1 y 2
+        intermedios = candidatos[
+            ~candidatos.isin(frecuencias_altas)
+        ]
+
+        if not intermedios.empty:
+
+            bloques_html = ""
+
+            for nombre_grupo, rango in grupos.items():
+
+                grupo = intermedios[
+                    intermedios.index.isin(rango)
+                ].sort_values(ascending=False)
+
+                lista_html = ""
+
+                for numero, frecuencia in grupo.items():
+                    lista_html += (
+                        f"<div style='"
+                        f"text-align:center;"
+                        f"margin:2px 0;"
+                        f"white-space:nowrap;"
+                        f"font-size:17px;"
+                        f"line-height:1.25;"
+                        f"'>"
+                        f"<span style='font-weight:600;'>{numero}</span> "
+                        f"<span style='color:#888;'>({frecuencia})</span>"
+                        f"</div>"
+                    )
+
+                bloques_html += (
+                    f"<div style='"
+                    f"flex:1 1 0;"
+                    f"min-width:0;"
+                    f"width:33.333%;"
+                    f"box-sizing:border-box;"
+                    f"padding:0 2px;"
+                    f"'>"
+                    f"<div style='"
+                    f"text-align:center;"
+                    f"font-weight:bold;"
+                    f"margin-bottom:6px;"
+                    f"white-space:nowrap;"
+                    f"font-size:14px;"
+                    f"'>"
+                    f"{nombre_grupo}"
+                    f"</div>"
+                    f"{lista_html}"
+                    f"</div>"
+                )
+
+            st.markdown(
+                f"""
+                <div style="
+                    display:flex;
+                    flex-direction:row;
+                    flex-wrap:nowrap;
+                    width:100%;
+                    max-width:100%;
+                    box-sizing:border-box;
+                    overflow:hidden;
+                    align-items:flex-start;
+                    justify-content:space-between;
+                ">
+                    {bloques_html}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        else:
+            st.info("No hay números intermedios disponibles con estos criterios.")
+
+    else:
+        st.info("No hay números con frecuencia de 2 o más en la semana.")
+
+# =========================================
+# 3 COMBINACIONES DE LA SELECCIÓN SEMANAL
+# =========================================
+
+if "resultados" in st.session_state and "1 semana" in st.session_state["resultados"]:
+
+    serie_semana = st.session_state["resultados"]["1 semana"]
+
+    # -----------------------------------------
+    # RECONSTRUIR EXACTAMENTE LA SELECCIÓN
+    # DE NÚMEROS INTERMEDIOS DE UNA SEMANA
+    # -----------------------------------------
+
+    candidatos = serie_semana[serie_semana >= 2]
+
+    if not candidatos.empty:
+
+        frecuencias_altas = sorted(candidatos.unique(), reverse=True)[:2]
+
+        intermedios = candidatos[
+            ~candidatos.isin(frecuencias_altas)
+        ]
+
+        numeros_seleccion = list(intermedios.index)
+
+        # -----------------------------------------
+        # GENERAR LAS 3 COMBINACIONES
+        # -----------------------------------------
+
+        combinaciones_semana = generar_3_combinaciones_semana(
+            numeros_seleccion
+        )
+
+        if len(combinaciones_semana) == 3:
+
+            st.markdown("---")
+            st.subheader("🎲 3 combinaciones de la selección semanal")
+
+            for i, comb in enumerate(combinaciones_semana, 1):
+
+                texto = ", ".join(str(n) for n in comb)
+
+                st.markdown(
+                    f"<div style='"
+                    f"text-align:center;"
+                    f"font-size:20px;"
+                    f"font-weight:600;"
+                    f"margin:8px 0;"
+                    f"'>"
+                    f"<span style='color:#888;'>Combinación {i}:</span> "
+                    f"<span>{texto}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+        elif len(numeros_seleccion) < 15:
+
+            st.info(
+                f"La selección semanal contiene solamente "
+                f"{len(numeros_seleccion)} números intermedios, "
+                f"por lo que no es posible formar 3 combinaciones "
+                f"completas de 5 números sin repetir."
+            )
