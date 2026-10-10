@@ -670,7 +670,10 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
 
     for columna, (nombre_decena, rango) in zip(columnas_decenas, rangos_decenas.items()):
         with columna:
-            st.markdown(f"**{nombre_decena}**")
+            st.markdown(
+                f"<div style='font-size:22px; font-weight:700;'>{nombre_decena}</div>",
+                unsafe_allow_html=True
+            )
 
             altos = [
                 (int(n), int(serie_semana.loc[n]))
