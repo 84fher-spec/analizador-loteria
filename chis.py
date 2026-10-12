@@ -727,47 +727,84 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
             else:
                 st.caption("Sin números")
 
-    # Crear tres combinaciones con 2 frecuentes, 2 intermedios y 1 poco frecuente.
+    # Crear tantas combinaciones como sea posible cumpliendo estrictamente
+    # la estructura 2 frecuentes + 2 intermedios + 1 menos frecuente.
+    # Ningún número puede aparecer en más de una combinación.
     st.markdown("---")
-    st.subheader("🎲 3 combinaciones por frecuencia semanales")
 
     mas_frecuentes = list(dict.fromkeys(mas_frecuentes))
     intermedios = list(dict.fromkeys(intermedios))
     menos_frecuentes = list(dict.fromkeys(menos_frecuentes))
 
-    combinaciones_adicionales = []
-    usados_altos = set()
-    usados_intermedios = set()
-    usados_bajos = set()
+    # Cada combinación consume 2 números altos, 2 intermedios y 1 bajo.
+    # Por eso el total posible está limitado por la categoría más escasa.
+    cantidad_combinaciones = min(
+        len(mas_frecuentes) // 2,
+        len(intermedios) // 2,
+        len(menos_frecuentes)
+    )
 
-    # Primero se intenta no repetir números entre las tres combinaciones.
-    # Si una categoría no tiene suficientes números únicos, se permite repetir
-    # únicamente dentro de esa categoría para poder completar las combinaciones.
-    for _ in range(3):
-        altos_disponibles = [n for n in mas_frecuentes if n not in usados_altos]
-        medios_disponibles = [n for n in intermedios if n not in usados_intermedios]
-        bajos_disponibles = [n for n in menos_frecuentes if n not in usados_bajos]
+    st.subheader(
+        f"🎲 Combinaciones semanales por frecuencia ({cantidad_combinaciones})"
+    )
 
-        altos_pool = altos_disponibles if len(altos_disponibles) >= 2 else mas_frecuentes
-        medios_pool = medios_disponibles if len(medios_disponibles) >= 2 else intermedios
-        bajos_pool = bajos_disponibles if len(bajos_disponibles) >= 1 else menos_frecuentes
+    if cantidad_combinaciones > 0:
+        # Elegir los números sin repetirlos y después probar distintas
+        # distribuciones para equilibrar unidades, decenas y veintenas
+        # dentro de cada combinación, sin romper la regla de frecuencias.
+        altos_elegidos = random.sample(
+            mas_frecuentes, cantidad_combinaciones * 2
+        )
+        medios_elegidos = random.sample(
+            intermedios, cantidad_combinaciones * 2
+        )
+        bajos_elegidos = random.sample(
+            menos_frecuentes, cantidad_combinaciones
+        )
 
-        if len(altos_pool) < 2 or len(medios_pool) < 2 or len(bajos_pool) < 1:
-            combinaciones_adicionales = []
-            break
+        mejor_combinaciones = None
+        mejor_puntuacion = None
 
-        seleccion_altos = random.sample(altos_pool, 2)
-        seleccion_medios = random.sample(medios_pool, 2)
-        seleccion_bajos = random.sample(bajos_pool, 1)
+        for _ in range(5000):
+            altos_prueba = altos_elegidos[:]
+            medios_prueba = medios_elegidos[:]
+            bajos_prueba = bajos_elegidos[:]
+            random.shuffle(altos_prueba)
+            random.shuffle(medios_prueba)
+            random.shuffle(bajos_prueba)
 
-        usados_altos.update(seleccion_altos)
-        usados_intermedios.update(seleccion_medios)
-        usados_bajos.update(seleccion_bajos)
+            prueba = []
+            puntuacion = 0
 
-        combinacion = sorted(seleccion_altos + seleccion_medios + seleccion_bajos)
-        combinaciones_adicionales.append(combinacion)
+            for i in range(cantidad_combinaciones):
+                combinacion = sorted(
+                    altos_prueba[i * 2:(i + 1) * 2]
+                    + medios_prueba[i * 2:(i + 1) * 2]
+                    + [bajos_prueba[i]]
+                )
+                cantidades = [
+                    sum(1 for n in combinacion if 1 <= n <= 9),
+                    sum(1 for n in combinacion if 10 <= n <= 19),
+                    sum(1 for n in combinacion if 20 <= n <= 28)
+                ]
 
-    if len(combinaciones_adicionales) == 3:
+                # Menor diferencia entre la decena más representada y
+                # la menos representada = mejor equilibrio.
+                puntuacion += max(cantidades) - min(cantidades)
+                # Preferir especialmente una distribución 2-2-1.
+                if sorted(cantidades) != [1, 2, 2]:
+                    puntuacion += 2
+
+                prueba.append(combinacion)
+
+            if mejor_puntuacion is None or puntuacion < mejor_puntuacion:
+                mejor_puntuacion = puntuacion
+                mejor_combinaciones = prueba
+                if puntuacion == 0:
+                    break
+
+        combinaciones_adicionales = mejor_combinaciones
+
         for i, combinacion in enumerate(combinaciones_adicionales, 1):
             texto_combinacion = ", ".join(str(n) for n in combinacion)
             st.markdown(
@@ -779,7 +816,7 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
             )
     else:
         st.info(
-            "No hay suficientes números en una o más categorías para formar "
-            "las 3 combinaciones. Se necesitan al menos 2 números más frecuentes, "
-            "2 intermedios y 1 menos frecuente."
+            "No es posible formar una combinación completa con la regla "
+            "estricta de 2 más frecuentes, 2 intermedios y 1 menos frecuente, "
+            "sin repetir ningún número."
         )
