@@ -728,7 +728,7 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
                 st.caption("Sin números")
 
     # Crear tantas combinaciones como sea posible cumpliendo estrictamente
-    # la estructura 2 frecuentes + 2 intermedios + 1 menos frecuente.
+    # la estructura 1 frecuente + 3 intermedios + 1 menos frecuente.
     # Ningún número puede aparecer en más de una combinación.
     st.markdown("---")
 
@@ -736,11 +736,11 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
     intermedios = list(dict.fromkeys(intermedios))
     menos_frecuentes = list(dict.fromkeys(menos_frecuentes))
 
-    # Cada combinación consume 2 números altos, 2 intermedios y 1 bajo.
+    # Cada combinación consume 1 número alto, 3 intermedios y 1 bajo.
     # Por eso el total posible está limitado por la categoría más escasa.
     cantidad_combinaciones = min(
-        len(mas_frecuentes) // 2,
-        len(intermedios) // 2,
+        len(mas_frecuentes),
+        len(intermedios) // 3,
         len(menos_frecuentes)
     )
 
@@ -753,10 +753,10 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
         # distribuciones para equilibrar unidades, decenas y veintenas
         # dentro de cada combinación, sin romper la regla de frecuencias.
         altos_elegidos = random.sample(
-            mas_frecuentes, cantidad_combinaciones * 2
+            mas_frecuentes, cantidad_combinaciones
         )
         medios_elegidos = random.sample(
-            intermedios, cantidad_combinaciones * 2
+            intermedios, cantidad_combinaciones * 3
         )
         bajos_elegidos = random.sample(
             menos_frecuentes, cantidad_combinaciones
@@ -778,8 +778,8 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
 
             for i in range(cantidad_combinaciones):
                 combinacion = sorted(
-                    altos_prueba[i * 2:(i + 1) * 2]
-                    + medios_prueba[i * 2:(i + 1) * 2]
+                    [altos_prueba[i]]
+                    + medios_prueba[i * 3:(i + 1) * 3]
                     + [bajos_prueba[i]]
                 )
                 cantidades = [
@@ -817,6 +817,6 @@ if "resultados" in st.session_state and "1 semana" in st.session_state["resultad
     else:
         st.info(
             "No es posible formar una combinación completa con la regla "
-            "estricta de 2 más frecuentes, 2 intermedios y 1 menos frecuente, "
+            "estricta de 1 más frecuente, 3 intermedios y 1 menos frecuente, "
             "sin repetir ningún número."
         )
