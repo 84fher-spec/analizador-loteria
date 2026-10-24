@@ -478,5 +478,5 @@ if "resultados" in st.session_state:
 
     st.write("")
     st.caption(
-        f"Restantes {len(restantes)}, descartados {len(descartados_totales)}"
+        f"Descartados {len(descartados_totales)}. Restantes {len(restantes)}"
     )
