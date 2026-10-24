@@ -297,6 +297,7 @@ if archivo is not None:
         # =========================================
         resultados["Histórico completo"] = calcular(df_calculo)
         st.session_state["resultados"] = resultados
+        st.session_state["df_calculo"] = df_calculo
 
 
 # =========================================
@@ -350,280 +351,132 @@ if "resultados" in st.session_state:
 
 
 # =========================================
-# SELECCIÓN ADICIONAL SEMANAL POR NIVELES
+# DESCARTES DE NÚMEROS Y RESULTADO FINAL
 # =========================================
 
-if "resultados" in st.session_state and "1 semana" in st.session_state["resultados"]:
+if "resultados" in st.session_state:
+    resultados = st.session_state["resultados"]
     st.markdown("---")
-    st.subheader("🎯 Selección semanal por frecuencias")
+    st.subheader("🧹 Descarte de números")
 
-    serie_semana = st.session_state["resultados"]["1 semana"]
-    rangos_decenas = {
-        "Unidades": range(1, 10),
-        "Decenas": range(10, 20),
-        "Veintenas": range(20, 29)
-    }
+    # Todos los números posibles, inicialmente disponibles.
+    disponibles = set(range(1, 29))
+    descartados_totales = set()
 
-    mas_frecuentes = []
-    intermedios = []
-    menos_frecuentes = []
+    def mostrar_numeros(titulo, numeros):
+        numeros = sorted(set(int(n) for n in numeros))
+        st.markdown(f"**{titulo}**")
+        if numeros:
+            st.write(", ".join(str(n) for n in numeros))
+        else:
+            st.write("Ningún número")
 
-    for nombre_decena, rango in rangos_decenas.items():
-        serie_decena = serie_semana[serie_semana.index.isin(rango)].sort_index()
-        menos_decena = serie_decena[serie_decena <= 1]
-        candidatos_decena = serie_decena[serie_decena >= 2]
-        niveles_altos = sorted(candidatos_decena.unique(), reverse=True)[:2]
-        altos_decena = candidatos_decena[candidatos_decena.isin(niveles_altos)]
-        intermedios_decena = candidatos_decena[~candidatos_decena.isin(niveles_altos)]
-
-        mas_frecuentes.extend(altos_decena.index.astype(int).tolist())
-        intermedios.extend(intermedios_decena.index.astype(int).tolist())
-        menos_frecuentes.extend(menos_decena.index.astype(int).tolist())
-
-    columnas_decenas = st.columns(3)
-    for columna, (nombre_decena, rango) in zip(columnas_decenas, rangos_decenas.items()):
-        with columna:
-            st.markdown(
-                f"<div style='font-size:22px; font-weight:700;'>{nombre_decena}</div>",
-                unsafe_allow_html=True
-            )
-            altos = [(int(n), int(serie_semana.loc[n])) for n in mas_frecuentes if n in rango]
-            medios = [(int(n), int(serie_semana.loc[n])) for n in intermedios if n in rango]
-            bajos = [(int(n), int(serie_semana.loc[n])) for n in menos_frecuentes if n in rango]
-
-            st.markdown("**Más frecuentes**")
-            if altos:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(altos, key=lambda x: (-x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-            st.markdown("**Intermedios**")
-            if medios:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(medios, key=lambda x: (-x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-            st.markdown("**Menos frecuentes**")
-            if bajos:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(bajos, key=lambda x: (x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-    # Combinaciones estrictas: 1 más frecuente + 3 intermedios + 1 menos frecuente.
-    st.markdown("---")
-    mas_frecuentes = list(dict.fromkeys(mas_frecuentes))
-    intermedios = list(dict.fromkeys(intermedios))
-    menos_frecuentes = list(dict.fromkeys(menos_frecuentes))
-
-    cantidad_combinaciones = min(
-        len(mas_frecuentes),
-        len(intermedios) // 3,
-        len(menos_frecuentes)
-    )
-    st.subheader(f"🎲 Combinaciones semanales por frecuencia ({cantidad_combinaciones})")
-
-    if cantidad_combinaciones > 0:
-        altos_elegidos = random.sample(mas_frecuentes, cantidad_combinaciones)
-        medios_elegidos = random.sample(intermedios, cantidad_combinaciones * 3)
-        bajos_elegidos = random.sample(menos_frecuentes, cantidad_combinaciones)
-        mejor_combinaciones = None
-        mejor_puntuacion = None
-
-        for _ in range(5000):
-            altos_prueba = altos_elegidos[:]
-            medios_prueba = medios_elegidos[:]
-            bajos_prueba = bajos_elegidos[:]
-            random.shuffle(altos_prueba)
-            random.shuffle(medios_prueba)
-            random.shuffle(bajos_prueba)
-            prueba = []
-            puntuacion = 0
-
-            for i in range(cantidad_combinaciones):
-                combinacion = sorted(
-                    [altos_prueba[i]]
-                    + medios_prueba[i * 3:(i + 1) * 3]
-                    + [bajos_prueba[i]]
-                )
-                cantidades = [
-                    sum(1 for n in combinacion if 1 <= n <= 9),
-                    sum(1 for n in combinacion if 10 <= n <= 19),
-                    sum(1 for n in combinacion if 20 <= n <= 28)
-                ]
-                puntuacion += max(cantidades) - min(cantidades)
-                if sorted(cantidades) != [1, 2, 2]:
-                    puntuacion += 2
-                prueba.append(combinacion)
-
-            if mejor_puntuacion is None or puntuacion < mejor_puntuacion:
-                mejor_puntuacion = puntuacion
-                mejor_combinaciones = prueba
-                if puntuacion == 0:
-                    break
-
-        for i, combinacion in enumerate(mejor_combinaciones, 1):
-            texto_combinacion = ", ".join(str(n) for n in combinacion)
-            st.markdown(
-                f"<div style='text-align:center;font-size:20px;font-weight:600;margin:8px 0;'>"
-                f"<span style='color:#888;'>Combinación {i}:</span> "
-                f"<span>{texto_combinacion}</span></div>",
-                unsafe_allow_html=True
-            )
-    else:
-        st.info(
-            "No es posible formar una combinación completa con la regla estricta de "
-            "1 más frecuente, 3 intermedios y 1 menos frecuente, sin repetir ningún número."
+    # 1. Descartar números con 0 o 1 aparición en la última semana.
+    if "1 semana" in resultados:
+        serie_semana = resultados["1 semana"]
+        candidatos_semana = set(
+            int(n) for n, frecuencia in serie_semana.items()
+            if int(frecuencia) <= 1
         )
-
-
-# =========================================
-# SELECCIÓN QUINCENAL POR FRECUENCIAS
-# =========================================
-
-if "resultados" in st.session_state and "15 días" in st.session_state["resultados"]:
-    st.markdown("---")
-    st.subheader("🎯 Selección quincenal por frecuencias")
-
-    serie_quincena = st.session_state["resultados"]["15 días"]
-    rangos_decenas_quincena = {
-        "Unidades": range(1, 10),
-        "Decenas": range(10, 20),
-        "Veintenas": range(20, 29)
-    }
-
-    mas_frecuentes_q = []
-    intermedios_q = []
-    menos_frecuentes_q = []
-
-    # Clasificar por separado dentro de cada decena usando las frecuencias de 15 días.
-    # Los menos frecuentes son los números de los dos niveles de frecuencia más bajos
-    # disponibles en cada decena, sin depender de un umbral fijo como 0 o 1 aparición.
-    for nombre_decena, rango in rangos_decenas_quincena.items():
-        serie_decena = serie_quincena[serie_quincena.index.isin(rango)].sort_index()
-        niveles = sorted(serie_decena.unique())
-        niveles_bajos = niveles[:2]
-        niveles_altos = niveles[-2:]
-
-        menos_decena = serie_decena[serie_decena.isin(niveles_bajos)]
-        altos_decena = serie_decena[serie_decena.isin(niveles_altos)]
-
-        # Los intermedios excluyen los dos niveles más bajos y los dos más altos.
-        niveles_intermedios = [nivel for nivel in niveles if nivel not in niveles_bajos and nivel not in niveles_altos]
-        intermedios_decena = serie_decena[serie_decena.isin(niveles_intermedios)]
-
-        mas_frecuentes_q.extend(altos_decena.index.astype(int).tolist())
-        intermedios_q.extend(intermedios_decena.index.astype(int).tolist())
-        menos_frecuentes_q.extend(menos_decena.index.astype(int).tolist())
-
-    columnas_decenas_q = st.columns(3)
-    for columna, (nombre_decena, rango) in zip(columnas_decenas_q, rangos_decenas_quincena.items()):
-        with columna:
-            st.markdown(
-                f"<div style='font-size:22px; font-weight:700;'>{nombre_decena}</div>",
-                unsafe_allow_html=True
-            )
-            altos = [(int(n), int(serie_quincena.loc[n])) for n in mas_frecuentes_q if n in rango]
-            medios = [(int(n), int(serie_quincena.loc[n])) for n in intermedios_q if n in rango]
-            bajos = [(int(n), int(serie_quincena.loc[n])) for n in menos_frecuentes_q if n in rango]
-
-            st.markdown("**Más frecuentes**")
-            if altos:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(altos, key=lambda x: (-x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-            st.markdown("**Intermedios**")
-            if medios:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(medios, key=lambda x: (-x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-            st.markdown("**Menos frecuentes**")
-            if bajos:
-                st.markdown(", ".join(
-                    f"<span style='font-weight:600;'>{n}</span> <span style='color:#888;'>({f})</span>"
-                    for n, f in sorted(bajos, key=lambda x: (x[1], x[0]))
-                ), unsafe_allow_html=True)
-            else:
-                st.caption("Sin números")
-
-    # Combinaciones quincenales estrictas: 1 más frecuente + 3 intermedios + 1 menos frecuente.
-    st.markdown("---")
-    mas_frecuentes_q = list(dict.fromkeys(mas_frecuentes_q))
-    intermedios_q = list(dict.fromkeys(intermedios_q))
-    menos_frecuentes_q = list(dict.fromkeys(menos_frecuentes_q))
-
-    cantidad_combinaciones_q = min(
-        len(mas_frecuentes_q),
-        len(intermedios_q) // 3,
-        len(menos_frecuentes_q)
-    )
-    st.subheader(f"🎲 Combinaciones quincenales por frecuencia ({cantidad_combinaciones_q})")
-
-    if cantidad_combinaciones_q > 0:
-        altos_elegidos_q = random.sample(mas_frecuentes_q, cantidad_combinaciones_q)
-        medios_elegidos_q = random.sample(intermedios_q, cantidad_combinaciones_q * 3)
-        bajos_elegidos_q = random.sample(menos_frecuentes_q, cantidad_combinaciones_q)
-        mejor_combinaciones_q = None
-        mejor_puntuacion_q = None
-
-        for _ in range(5000):
-            altos_prueba_q = altos_elegidos_q[:]
-            medios_prueba_q = medios_elegidos_q[:]
-            bajos_prueba_q = bajos_elegidos_q[:]
-            random.shuffle(altos_prueba_q)
-            random.shuffle(medios_prueba_q)
-            random.shuffle(bajos_prueba_q)
-            prueba_q = []
-            puntuacion_q = 0
-
-            for i in range(cantidad_combinaciones_q):
-                combinacion_q = sorted(
-                    [altos_prueba_q[i]]
-                    + medios_prueba_q[i * 3:(i + 1) * 3]
-                    + [bajos_prueba_q[i]]
-                )
-                cantidades_q = [
-                    sum(1 for n in combinacion_q if 1 <= n <= 9),
-                    sum(1 for n in combinacion_q if 10 <= n <= 19),
-                    sum(1 for n in combinacion_q if 20 <= n <= 28)
-                ]
-                puntuacion_q += max(cantidades_q) - min(cantidades_q)
-                if sorted(cantidades_q) != [1, 2, 2]:
-                    puntuacion_q += 2
-                prueba_q.append(combinacion_q)
-
-            if mejor_puntuacion_q is None or puntuacion_q < mejor_puntuacion_q:
-                mejor_puntuacion_q = puntuacion_q
-                mejor_combinaciones_q = prueba_q
-                if puntuacion_q == 0:
-                    break
-
-        for i, combinacion_q in enumerate(mejor_combinaciones_q, 1):
-            texto_combinacion_q = ", ".join(str(n) for n in combinacion_q)
-            st.markdown(
-                f"<div style='text-align:center;font-size:20px;font-weight:600;margin:8px 0;'>"
-                f"<span style='color:#888;'>Combinación {i}:</span> "
-                f"<span>{texto_combinacion_q}</span></div>",
-                unsafe_allow_html=True
-            )
-    else:
-        st.info(
-            "No es posible formar una combinación completa con la regla estricta de "
-            "1 más frecuente, 3 intermedios y 1 menos frecuente, sin repetir ningún número."
+        descartados_semana = candidatos_semana & disponibles
+        disponibles -= descartados_semana
+        descartados_totales |= descartados_semana
+        mostrar_numeros(
+            "Descartados, 1 semana (0 y 1 aparición)",
+            descartados_semana
         )
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 1 semana.")
+
+    # 2. Descartar los dos niveles de frecuencia más bajos del periodo de 15 días.
+    if "15 días" in resultados:
+        serie_quincena = resultados["15 días"]
+        niveles_quincena = sorted(set(int(f) for f in serie_quincena.values))
+        niveles_bajos_quincena = niveles_quincena[:2]
+        candidatos_quincena = set(
+            int(n) for n, frecuencia in serie_quincena.items()
+            if int(frecuencia) in niveles_bajos_quincena
+        )
+        descartados_quincena = candidatos_quincena & disponibles
+        disponibles -= descartados_quincena
+        descartados_totales |= descartados_quincena
+        mostrar_numeros(
+            "Descartados, 15 días (2 niveles)",
+            descartados_quincena
+        )
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
+
+    # 3. Descartar los dos números menos frecuentes del histórico completo.
+    if "Histórico completo" in resultados:
+        serie_historica = resultados["Histórico completo"]
+        candidatos_historicos = sorted(
+            serie_historica.items(),
+            key=lambda elemento: (int(elemento[1]), int(elemento[0]))
+        )
+        numeros_menos_frecuentes_historicos = [
+            int(n) for n, _ in candidatos_historicos[:2]
+        ]
+        descartados_historicos = set(numeros_menos_frecuentes_historicos) & disponibles
+        disponibles -= descartados_historicos
+        descartados_totales |= descartados_historicos
+        mostrar_numeros(
+            "Descartados, histórico completo (2 niveles)",
+            descartados_historicos
+        )
+    else:
+        st.warning("No hay datos disponibles para el histórico completo.")
+
+    # 4. Descartar los números del último sorteo registrado.
+    columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
+    df_calculo_actual = st.session_state.get("df_calculo")
+    if df_calculo_actual is not None and all(columna in df_calculo_actual.columns for columna in columnas_numeros):
+        ultimo_registro = df_calculo_actual.sort_values("fecha").iloc[-1]
+        numeros_ultimo_sorteo = set()
+        for columna in columnas_numeros:
+            valor = pd.to_numeric(ultimo_registro[columna], errors="coerce")
+            if pd.notna(valor) and 1 <= int(valor) <= 28:
+                numeros_ultimo_sorteo.add(int(valor))
+
+        descartados_ultimo_sorteo = numeros_ultimo_sorteo & disponibles
+        disponibles -= descartados_ultimo_sorteo
+        descartados_totales |= descartados_ultimo_sorteo
+        mostrar_numeros(
+            "Descartados, último sorteo",
+            descartados_ultimo_sorteo
+        )
+        st.caption(
+            "Último sorteo: "
+            + (", ".join(str(n) for n in sorted(numeros_ultimo_sorteo))
+               if numeros_ultimo_sorteo else "No se encontraron números válidos")
+        )
+    else:
+        st.warning("No se pudieron identificar las columnas R1–R5 del último sorteo.")
+
+    # 5. Mostrar los números que sobrevivieron a todos los descartes.
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
+        unsafe_allow_html=True
+    )
+    restantes = sorted(disponibles)
+    if restantes:
+        filas_por_decena = [
+            [n for n in restantes if 1 <= n <= 9],
+            [n for n in restantes if 10 <= n <= 19],
+            [n for n in restantes if 20 <= n <= 28],
+        ]
+        for fila in filas_por_decena:
+            if fila:
+                st.markdown(
+                    f"<div style='font-size:22px;font-weight:700;line-height:1.7;'>"
+                    f"{', '.join(str(n) for n in fila)}</div>",
+                    unsafe_allow_html=True
+                )
+    else:
+        st.write("Ninguno")
+
+    st.write("")
+    st.caption(
+        f"Números restantes {len(restantes)}, números descartados {len(descartados_totales)}"
+    )
