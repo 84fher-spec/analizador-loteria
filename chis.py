@@ -480,3 +480,348 @@ if "resultados" in st.session_state:
     st.caption(
         f"Descartados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
+
+
+# =========================================
+# DESCARTES DE NÚMEROS Y RESULTADO FINAL
+# =========================================
+
+if "resultados" in st.session_state:
+    resultados = st.session_state["resultados"]
+    st.markdown("---")
+    st.subheader("🧹 Descarte de números")
+
+    disponibles = set(range(1, 29))
+    descartados_totales = set()
+
+    def mostrar_numeros(titulo, numeros):
+        numeros = sorted(set(int(n) for n in numeros))
+        st.markdown(f"**{titulo}**")
+        if numeros:
+            st.write(", ".join(str(n) for n in numeros))
+        else:
+            st.write("Ningún número")
+
+    # 1. Descartar números con 0 o 1 aparición en la última semana.
+    if "1 semana" in resultados:
+        serie_semana = resultados["1 semana"]
+        candidatos_semana = {
+            int(n) for n, frecuencia in serie_semana.items()
+            if int(frecuencia) <= 1
+        }
+        descartados_semana = candidatos_semana & disponibles
+        disponibles -= descartados_semana
+        descartados_totales |= descartados_semana
+
+        mostrar_numeros(
+            "Descartados, 1 semana (0 y 1 aparición)",
+            descartados_semana
+        )
+    else:
+        st.warning(
+            "No hay datos disponibles para calcular el periodo de 1 semana."
+        )
+
+    # 2. Descartar los dos niveles de frecuencia más bajos del periodo de 15 días.
+    if "15 días" in resultados:
+        serie_quincena = resultados["15 días"]
+        niveles_quincena = sorted(
+            set(int(f) for f in serie_quincena.values)
+        )
+        niveles_bajos_quincena = niveles_quincena[:2]
+
+        candidatos_quincena = {
+            int(n) for n, frecuencia in serie_quincena.items()
+            if int(frecuencia) in niveles_bajos_quincena
+        }
+
+        descartados_quincena = candidatos_quincena & disponibles
+        disponibles -= descartados_quincena
+        descartados_totales |= descartados_quincena
+
+        mostrar_numeros(
+            "Descartados, 15 días (2 niveles)",
+            descartados_quincena
+        )
+    else:
+        st.warning(
+            "No hay datos disponibles para calcular el periodo de 15 días."
+        )
+
+    # 3. Descartar los dos números menos frecuentes del histórico completo.
+    if "Histórico completo" in resultados:
+        serie_historica = resultados["Histórico completo"]
+
+        candidatos_historicos = sorted(
+            serie_historica.items(),
+            key=lambda elemento: (
+                int(elemento[1]), int(elemento[0])
+            )
+        )
+
+        numeros_menos_frecuentes_historicos = [
+            int(n) for n, _ in candidatos_historicos[:2]
+        ]
+
+        descartados_historicos = (
+            set(numeros_menos_frecuentes_historicos) & disponibles
+        )
+        disponibles -= descartados_historicos
+        descartados_totales |= descartados_historicos
+
+        mostrar_numeros(
+            "Descartados, histórico completo (2 niveles)",
+            descartados_historicos
+        )
+    else:
+        st.warning(
+            "No hay datos disponibles para el histórico completo."
+        )
+
+    # 4. Descartar los números del último sorteo registrado.
+    columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
+    df_calculo_actual = st.session_state.get("df_calculo")
+
+    if (
+        df_calculo_actual is not None
+        and all(
+            columna in df_calculo_actual.columns
+            for columna in columnas_numeros
+        )
+        and "fecha" in df_calculo_actual.columns
+        and not df_calculo_actual.empty
+    ):
+        ultimo_registro = (
+            df_calculo_actual.sort_values("fecha").iloc[-1]
+        )
+
+        numeros_ultimo_sorteo = set()
+
+        for columna in columnas_numeros:
+            valor = pd.to_numeric(
+                ultimo_registro[columna], errors="coerce"
+            )
+
+            if pd.notna(valor) and 1 <= int(valor) <= 28:
+                numeros_ultimo_sorteo.add(int(valor))
+
+        descartados_ultimo_sorteo = (
+            numeros_ultimo_sorteo & disponibles
+        )
+        disponibles -= descartados_ultimo_sorteo
+        descartados_totales |= descartados_ultimo_sorteo
+
+        mostrar_numeros(
+            "Descartados, último sorteo",
+            descartados_ultimo_sorteo
+        )
+
+        st.caption(
+            "Último sorteo: "
+            + (
+                ", ".join(
+                    str(n) for n in sorted(numeros_ultimo_sorteo)
+                )
+                if numeros_ultimo_sorteo
+                else "No se encontraron números válidos"
+            )
+        )
+    else:
+        st.warning(
+            "No se pudieron identificar las columnas R1–R5 del último sorteo."
+        )
+
+    # 5. Mostrar los números que sobrevivieron a todos los descartes.
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:20px;font-weight:600;margin-bottom:8px;'>"
+        "Números restantes</div>",
+        unsafe_allow_html=True
+    )
+
+    restantes = sorted(disponibles)
+
+    if restantes:
+        filas_por_decena = [
+            [n for n in restantes if 1 <= n <= 9],
+            [n for n in restantes if 10 <= n <= 19],
+            [n for n in restantes if 20 <= n <= 28],
+        ]
+
+        for fila in filas_por_decena:
+            if fila:
+                st.markdown(
+                    f"<div style='font-size:22px;font-weight:700;"
+                    f"line-height:1.7;'>"
+                    f"{', '.join(str(n) for n in fila)}</div>",
+                    unsafe_allow_html=True
+                )
+    else:
+        st.write("Ninguno")
+
+    st.write("")
+    st.caption(
+        f"Descartados {len(descartados_totales)}. "
+        f"Restantes {len(restantes)}."
+    )
+
+
+# =========================================
+# GENERAR COMBINACIONES CON NÚMEROS RESTANTES
+# =========================================
+
+def generar_combinaciones_restantes(numeros):
+    import math
+    import random
+
+    numeros = sorted(set(int(n) for n in numeros))
+
+    if not numeros:
+        return []
+
+    grupos_originales = {
+        "U": [n for n in numeros if 1 <= n <= 9],
+        "D": [n for n in numeros if 10 <= n <= 19],
+        "V": [n for n in numeros if 20 <= n <= 28],
+    }
+
+    # Si falta una decena completa, no es posible garantizar
+    # su presencia usando exclusivamente los números restantes.
+    if any(not grupo for grupo in grupos_originales.values()):
+        return []
+
+    total = len(numeros)
+
+    # Crear suficientes combinaciones para acomodar todos los números.
+    # Cada combinación tendrá cinco números y al menos uno de cada grupo.
+    cantidad = max(
+        math.ceil(total / 5),
+        math.ceil(
+            max(len(grupo) for grupo in grupos_originales.values()) / 3
+        )
+    )
+
+    combinaciones = [[] for _ in range(cantidad)]
+    grupos_pendientes = {
+        nombre: grupo.copy()
+        for nombre, grupo in grupos_originales.items()
+    }
+
+    # Primero reservar un número de cada decena en cada combinación.
+    # Si un grupo tiene pocos números, se repiten únicamente los necesarios.
+    for combinacion in combinaciones:
+        for nombre in ("U", "D", "V"):
+            if grupos_pendientes[nombre]:
+                numero = grupos_pendientes[nombre].pop(0)
+            else:
+                numero = random.choice(grupos_originales[nombre])
+
+            combinacion.append(numero)
+
+    # Distribuir todos los números restantes sin omitir ninguno.
+    for nombre in ("U", "D", "V"):
+        for numero in grupos_pendientes[nombre]:
+            def contar_grupo(combinacion, grupo):
+                if grupo == "U":
+                    return sum(1 <= n <= 9 for n in combinacion)
+                if grupo == "D":
+                    return sum(10 <= n <= 19 for n in combinacion)
+                return sum(20 <= n <= 28 for n in combinacion)
+
+            candidatas = [
+                combinacion
+                for combinacion in combinaciones
+                if len(combinacion) < 5
+                and contar_grupo(combinacion, nombre) < 3
+            ]
+
+            if not candidatas:
+                # Salvaguarda: agregar otra combinación si hiciera falta.
+                nueva = [
+                    random.choice(grupos_originales["U"]),
+                    random.choice(grupos_originales["D"]),
+                    random.choice(grupos_originales["V"]),
+                ]
+                combinaciones.append(nueva)
+                candidatas = [nueva]
+
+            candidatas.sort(
+                key=lambda combinacion: (
+                    contar_grupo(combinacion, nombre),
+                    len(combinacion)
+                )
+            )
+
+            candidatas[0].append(numero)
+
+    # Completar a cinco números, manteniendo las tres decenas
+    # y evitando que una sola decena tenga más de tres números.
+    for combinacion in combinaciones:
+        while len(combinacion) < 5:
+            conteos = {
+                "U": sum(1 <= n <= 9 for n in combinacion),
+                "D": sum(10 <= n <= 19 for n in combinacion),
+                "V": sum(20 <= n <= 28 for n in combinacion),
+            }
+
+            candidatos = [
+                nombre
+                for nombre in ("U", "D", "V")
+                if conteos[nombre] < 3
+            ]
+
+            candidatos.sort(key=lambda nombre: conteos[nombre])
+            grupo_elegido = candidatos[0]
+
+            combinacion.append(
+                random.choice(grupos_originales[grupo_elegido])
+            )
+
+    # Ordenar cada combinación.
+    combinaciones = [
+        sorted(combinacion)
+        for combinacion in combinaciones
+    ]
+
+    # Verificar que no falte ningún número restante.
+    numeros_utilizados = {
+        numero
+        for combinacion in combinaciones
+        for numero in combinacion
+    }
+
+    faltantes = set(numeros) - numeros_utilizados
+
+    assert not faltantes, (
+        f"Faltan números restantes: {sorted(faltantes)}"
+    )
+    assert all(len(combinacion) == 5 for combinacion in combinaciones)
+    assert all(
+        any(1 <= n <= 9 for n in combinacion)
+        for combinacion in combinaciones
+    )
+    assert all(
+        any(10 <= n <= 19 for n in combinacion)
+        for combinacion in combinaciones
+    )
+    assert all(
+        any(20 <= n <= 28 for n in combinacion)
+        for combinacion in combinaciones
+    )
+
+    return combinaciones
+
+
+# =========================================
+# MOSTRAR COMBINACIONES
+# =========================================
+
+if "resultados" in st.session_state:
+    combinaciones = generar_combinaciones_restantes(restantes)
+
+    if combinaciones:
+        st.markdown("---")
+        st.subheader("Combinaciones")
+
+        for combinacion in combinaciones:
+            st.write(" - ".join(f"{n:02d}" for n in combinacion))
