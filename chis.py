@@ -504,61 +504,80 @@ if "resultados" in st.session_state:
         f"Descartados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
 
-    # 7. Generar combinaciones equilibradas con los números restantes.
-    # Todas las combinaciones completas deben incluir unidades, decenas y veintenas.
-    import itertools
-
+    # 7. Generar combinaciones de 5 números sin repetir números entre combinaciones.
+    # Cada combinación completa usa exactamente 2 grupos con 2 números y 1 grupo con 1 número.
     numeros_disponibles = sorted(set(restantes))
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
     decenas = [n for n in numeros_disponibles if 10 <= n <= 19]
     veintenas = [n for n in numeros_disponibles if 20 <= n <= 28]
-    grupos = [unidades, decenas, veintenas]
+    grupos_numeros = [unidades, decenas, veintenas]
+    cantidades = [len(grupo) for grupo in grupos_numeros]
 
-    # Solo se admiten combinaciones con distribución 2-2-1 entre los tres grupos.
-    combinaciones_validas = []
-    for combinacion in itertools.combinations(numeros_disponibles, 5):
-        cantidades_grupos = (
-            sum(1 <= n <= 9 for n in combinacion),
-            sum(10 <= n <= 19 for n in combinacion),
-            sum(20 <= n <= 28 for n in combinacion),
-        )
-        if (
-            all(cantidad >= 1 for cantidad in cantidades_grupos)
-            and sorted(cantidades_grupos) == [1, 2, 2]
-        ):
-            combinaciones_validas.append(tuple(combinacion))
+    # Se busca la mayor cantidad posible de combinaciones completas válidas.
+    # Para cada combinación, cada grupo aporta al menos un número y dos grupos aportan dos.
+    cantidad_combinaciones = 0
+    asignacion_singulares = []
+    for k in range(len(numeros_disponibles) // 5, 0, -1):
+        opciones = []
+        # s[g] = cuántas combinaciones usan un número del grupo g y dos de los otros grupos.
+        for s0 in range(k + 1):
+            for s1 in range(k + 1):
+                s2 = k - s0 - s1
+                if not 0 <= s2 <= k:
+                    continue
+                singulares = [s0, s1, s2]
+                usados_por_grupo = [2 * k - singulares[g] for g in range(3)]
+                if all(usados_por_grupo[g] <= cantidades[g] for g in range(3)):
+                    opciones.append(singulares)
+        if opciones:
+            cantidad_combinaciones = k
+            asignacion_singulares = random.choice(opciones)
+            break
 
-    # Buscar el conjunto de combinaciones sin números repetidos que use más números.
     mejores_combinaciones = []
-    mejor_cantidad = -1
-    if combinaciones_validas:
-        for _ in range(2000):
-            candidatas = combinaciones_validas[:]
-            random.shuffle(candidatas)
-            usadas = set()
-            seleccionadas = []
-            for combinacion in candidatas:
-                if not usadas.intersection(combinacion):
-                    # Validación final: ninguna combinación completa puede omitir un grupo.
-                    tiene_unidades = any(1 <= n <= 9 for n in combinacion)
-                    tiene_decenas = any(10 <= n <= 19 for n in combinacion)
-                    tiene_veintenas = any(20 <= n <= 28 for n in combinacion)
-                    if len(combinacion) == 5 and tiene_unidades and tiene_decenas and tiene_veintenas:
-                        seleccionadas.append(combinacion)
-                        usadas.update(combinacion)
-            if len(seleccionadas) > mejor_cantidad:
-                mejor_cantidad = len(seleccionadas)
-                mejores_combinaciones = seleccionadas
-                if len(usadas) == (len(numeros_disponibles) // 5) * 5:
-                    break
+    if cantidad_combinaciones:
+        # Crear la lista del grupo que aporta solo un número en cada combinación.
+        grupos_singulares = []
+        for indice_grupo, cantidad_singular in enumerate(asignacion_singulares):
+            grupos_singulares.extend([indice_grupo] * cantidad_singular)
+        random.shuffle(grupos_singulares)
+
+        grupos_barajados = [grupo[:] for grupo in grupos_numeros]
+        for grupo in grupos_barajados:
+            random.shuffle(grupo)
+        posiciones = [0, 0, 0]
+
+        for grupo_singular in grupos_singulares:
+            combinacion = []
+            for indice_grupo in range(3):
+                aporte = 1 if indice_grupo == grupo_singular else 2
+                inicio = posiciones[indice_grupo]
+                fin = inicio + aporte
+                combinacion.extend(grupos_barajados[indice_grupo][inicio:fin])
+                posiciones[indice_grupo] = fin
+
+            # Validación final estricta: exactamente 5 números, sin duplicados,
+            # con unidades, decenas y veintenas presentes.
+            if (
+                len(combinacion) == 5
+                and len(set(combinacion)) == 5
+                and any(1 <= n <= 9 for n in combinacion)
+                and any(10 <= n <= 19 for n in combinacion)
+                and any(20 <= n <= 28 for n in combinacion)
+            ):
+                mejores_combinaciones.append(sorted(combinacion))
 
     numeros_usados = {n for combinacion in mejores_combinaciones for n in combinacion}
     numeros_incompletos = sorted(set(numeros_disponibles) - numeros_usados)
 
+    # Guardar el resultado para que el botón regenere usando los mismos números sobrevivientes.
+    st.session_state["combinaciones_descartes"] = mejores_combinaciones
+    st.session_state["incompletos_descartes"] = numeros_incompletos
+
     for combinacion in mejores_combinaciones:
         st.markdown(
             f"<div style='font-size:22px;font-weight:700;line-height:1.7;'>"
-            f"{', '.join(str(n) for n in sorted(combinacion))}</div>",
+            f"{', '.join(str(n) for n in combinacion)}</div>",
             unsafe_allow_html=True
         )
 
@@ -568,3 +587,7 @@ if "resultados" in st.session_state:
             f"{', '.join(str(n) for n in numeros_incompletos)}</div>",
             unsafe_allow_html=True
         )
+
+    # Streamlit vuelve a ejecutar el script al pulsar el botón; las frecuencias
+    # permanecen en session_state y se regeneran las combinaciones desde los restantes.
+    st.button("Regenerar combinaciones")
