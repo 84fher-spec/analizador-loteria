@@ -39,7 +39,7 @@ if archivo is not None:
     df.columns = df.columns.str.strip().str.lower()
 
     columnas_esperadas = {
-        "r1","r2","r3","r4","r5","fecha"
+        "r1", "r2", "r3", "r4", "r5", "fecha"
     }
 
     if not columnas_esperadas.issubset(set(df.columns)):
@@ -50,9 +50,14 @@ if archivo is not None:
         st.stop()
 
     # Solo usar las columnas necesarias
-    df = df[["r1","r2","r3","r4","r5","fecha"]]
+    df = df[["r1", "r2", "r3", "r4", "r5", "fecha"]]
 
-    df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True, errors="coerce")
+    df["fecha"] = pd.to_datetime(
+        df["fecha"],
+        dayfirst=True,
+        errors="coerce"
+    )
+
     df = df.dropna(subset=["fecha"])
 
     if df.empty:
@@ -68,50 +73,54 @@ if archivo is not None:
 
         def calcular_top10_por_posicion(df_bloque):
 
-            posiciones = ["r1","r2","r3","r4","r5"]
+            posiciones = ["r1", "r2", "r3", "r4", "r5"]
             resultado = {}
 
-            # 🔹 Rango correcto: 0 a 9
+            # Rango correcto: 0 a 9
             rango_numeros = list(range(0, 10))
 
             for pos in posiciones:
 
-                nums = pd.to_numeric(df_bloque[pos], errors="coerce")
+                nums = pd.to_numeric(
+                    df_bloque[pos],
+                    errors="coerce"
+                )
+
                 nums = nums.dropna().astype(int)
 
                 frec = nums.value_counts()
 
-                # 🔹 Incluir números con 0 frecuencia
-                frec = frec.reindex(rango_numeros, fill_value=0)
+                # Incluir números con 0 frecuencia
+                frec = frec.reindex(
+                    rango_numeros,
+                    fill_value=0
+                )
 
-                # 🔹 Ordenar por frecuencia descendente
-                frec = frec.sort_values(ascending=False).head(10)
+                # Ordenar por frecuencia descendente
+                frec = frec.sort_values(
+                    ascending=False
+                ).head(10)
 
                 resultado[pos.upper()] = frec
 
             return resultado
 
-
-        etiquetas = {
-            "1 semana": 7,
-            "15 días": 15,
-            "1 mes": 30,
-            "1 mes y medio": 45,
-            "2 meses": 60
-        }
-
+        # =========================================
+        # ÚNICO PERIODO: 1 SEMANA
+        # =========================================
         resultados = {}
 
-        for etiqueta, dias in etiquetas.items():
+        fecha_inicio = fecha_base - timedelta(days=7)
 
-            fecha_inicio = fecha_base - timedelta(days=dias)
-            datos_periodo = df[df["fecha"] >= fecha_inicio]
+        datos_periodo = df[
+            df["fecha"] >= fecha_inicio
+        ]
 
-            if datos_periodo.empty:
-                continue
+        if not datos_periodo.empty:
 
-            resultados[etiqueta] = calcular_top10_por_posicion(datos_periodo)
-
+            resultados["1 semana"] = (
+                calcular_top10_por_posicion(datos_periodo)
+            )
 
         # =========================================
         # MOSTRAR RESULTADOS
@@ -127,7 +136,10 @@ if archivo is not None:
             html += "<tr>"
 
             for pos in datos.keys():
-                html += f"<th style='padding:4px;border-bottom:1px solid #ccc;'>{pos}</th>"
+                html += (
+                    f"<th style='padding:4px;border-bottom:1px solid #ccc;'>"
+                    f"{pos}</th>"
+                )
 
             html += "</tr>"
 
@@ -144,7 +156,8 @@ if archivo is not None:
 
                         html += (
                             "<td style='padding:4px;'>"
-                            f"{num} <span style='color:#888;'>({freq})</span>"
+                            f"{num} "
+                            f"<span style='color:#888;'>({freq})</span>"
                             "</td>"
                         )
 
