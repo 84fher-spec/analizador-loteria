@@ -143,6 +143,7 @@ if archivo is not None:
 
             html += "</tr>"
 
+
             for i in range(10):
 
                 html += "<tr>"
@@ -154,9 +155,23 @@ if archivo is not None:
                         num = datos[pos].index[i]
                         freq = datos[pos].iloc[i]
 
+                        if freq <= 3:
+                            estilo_numero = (
+                                "color:red;"
+                                "font-weight:bold;"
+                            )
+                        else:
+                            estilo_numero = (
+                                "background-color:#16803c;"
+                                "color:white;"
+                                "font-weight:bold;"
+                                "padding:5px 9px;"
+                                "border-radius:4px;"
+                            )
+
                         html += (
                             "<td style='padding:4px;'>"
-                            f"{num} "
+                            f"<span style='{estilo_numero}'>{num}</span> "
                             f"<span style='color:#888;'>({freq})</span>"
                             "</td>"
                         )
