@@ -427,7 +427,53 @@ if "resultados" in st.session_state:
     else:
         st.warning("No hay datos disponibles para el histórico completo.")
 
-    # 4. Descartar los números del último sorteo registrado.
+    # 4. Descarte: los dos niveles de frecuencia más altos de la semana.
+    if "1 semana" in resultados:
+        serie_semana = resultados["1 semana"]
+        niveles_frecuentes_semana = sorted(
+            set(int(frecuencia) for frecuencia in serie_semana.values),
+            reverse=True
+        )[:2]
+        candidatos_niveles_frecuentes_semana = set(
+            int(n) for n, frecuencia in serie_semana.items()
+            if int(frecuencia) in niveles_frecuentes_semana
+        )
+        descartados_niveles_frecuentes_semana = (
+            candidatos_niveles_frecuentes_semana & disponibles
+        )
+        disponibles -= descartados_niveles_frecuentes_semana
+        descartados_totales |= descartados_niveles_frecuentes_semana
+        mostrar_numeros(
+            "Descartados, más frecuentes de una semana (2 niveles)",
+            descartados_niveles_frecuentes_semana
+        )
+    else:
+        st.warning("No hay datos disponibles para realizar el descarte final de 1 semana.")
+
+    # 5. Descartar los dos niveles de frecuencia más altos del periodo de 15 días.
+    if "15 días" in resultados:
+        serie_quincena = resultados["15 días"]
+        niveles_frecuentes_quincena = sorted(
+            set(int(frecuencia) for frecuencia in serie_quincena.values),
+            reverse=True
+        )[:2]
+        candidatos_niveles_frecuentes_quincena = set(
+            int(n) for n, frecuencia in serie_quincena.items()
+            if int(frecuencia) in niveles_frecuentes_quincena
+        )
+        descartados_niveles_frecuentes_quincena = (
+            candidatos_niveles_frecuentes_quincena & disponibles
+        )
+        disponibles -= descartados_niveles_frecuentes_quincena
+        descartados_totales |= descartados_niveles_frecuentes_quincena
+        mostrar_numeros(
+            "Descartados, más frecuentes de quince días (2 niveles)",
+            descartados_niveles_frecuentes_quincena
+        )
+    else:
+        st.warning("No hay datos disponibles para realizar el descarte de los más frecuentes de quince días.")
+
+    # 6. Descartar los números del último sorteo registrado.
     columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
     df_calculo_actual = st.session_state.get("df_calculo")
     if df_calculo_actual is not None and all(columna in df_calculo_actual.columns for columna in columnas_numeros):
@@ -453,30 +499,8 @@ if "resultados" in st.session_state:
     else:
         st.warning("No se pudieron identificar las columnas R1–R5 del último sorteo.")
 
-    # 5. Descarte final: los dos niveles de frecuencia más altos de la semana.
-    if "1 semana" in resultados:
-        serie_semana = resultados["1 semana"]
-        niveles_frecuentes_semana = sorted(
-            set(int(frecuencia) for frecuencia in serie_semana.values),
-            reverse=True
-        )[:2]
-        candidatos_niveles_frecuentes_semana = set(
-            int(n) for n, frecuencia in serie_semana.items()
-            if int(frecuencia) in niveles_frecuentes_semana
-        )
-        descartados_niveles_frecuentes_semana = (
-            candidatos_niveles_frecuentes_semana & disponibles
-        )
-        disponibles -= descartados_niveles_frecuentes_semana
-        descartados_totales |= descartados_niveles_frecuentes_semana
-        mostrar_numeros(
-            "Descartados, más frecuentes de una semana (2 niveles)",
-            descartados_niveles_frecuentes_semana
-        )
-    else:
-        st.warning("No hay datos disponibles para realizar el descarte final de 1 semana.")
 
-    # 6. Mostrar los números restantes al final, después de todos los descartes.
+    # 7. Mostrar los números restantes al final, después de todos los descartes.
     st.markdown("---")
     st.markdown(
         "<div style='font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
@@ -504,7 +528,7 @@ if "resultados" in st.session_state:
         f"Descartados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
 
-    # 7. Generar combinaciones de 5 números sin repetir números entre combinaciones.
+    # 8. Generar combinaciones de 5 números sin repetir números entre combinaciones.
     # Cada combinación completa usa exactamente 2 grupos con 2 números y 1 grupo con 1 número.
     numeros_disponibles = sorted(set(restantes))
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
