@@ -473,7 +473,41 @@ if "resultados" in st.session_state:
     else:
         st.warning("No hay datos disponibles para realizar el descarte de los más frecuentes de quince días.")
 
-    # 6. Descartar los números del último sorteo registrado.
+    # 6. Descartar números que aparecieron 2 o más veces en los últimos 4 sorteos.
+    df_calculo_actual = st.session_state.get("df_calculo")
+    columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
+
+    if (
+        df_calculo_actual is not None
+        and all(columna in df_calculo_actual.columns for columna in columnas_numeros)
+    ):
+        ultimos_4 = df_calculo_actual.sort_values("fecha").tail(4)
+        numeros_ultimos_4 = (
+            ultimos_4[columnas_numeros]
+            .apply(pd.to_numeric, errors="coerce")
+            .stack()
+        )
+        numeros_ultimos_4 = numeros_ultimos_4[
+            numeros_ultimos_4.between(1, 28)
+        ].astype(int)
+
+        frecuencias_ultimos_4 = numeros_ultimos_4.value_counts()
+        descartados_ultimos_4_candidatos = set(
+            int(n) for n, frecuencia in frecuencias_ultimos_4.items()
+            if int(frecuencia) >= 2
+        )
+        descartados_ultimos_4 = descartados_ultimos_4_candidatos & disponibles
+        disponibles -= descartados_ultimos_4
+        descartados_totales |= descartados_ultimos_4
+
+        mostrar_numeros(
+            "Descartados, últimos 4 sorteos (2 o más apariciones)",
+            descartados_ultimos_4
+        )
+    else:
+        st.warning("No se pudieron identificar los datos de los últimos 4 sorteos.")
+
+    # 7. Descartar los números del último sorteo registrado.
     columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
     df_calculo_actual = st.session_state.get("df_calculo")
     if df_calculo_actual is not None and all(columna in df_calculo_actual.columns for columna in columnas_numeros):
@@ -500,7 +534,8 @@ if "resultados" in st.session_state:
         st.warning("No se pudieron identificar las columnas R1–R5 del último sorteo.")
 
 
-    # 7. Mostrar los números restantes al final, después de todos los descartes.
+
+    # 8. Mostrar los números restantes al final, después de todos los descartes.
     st.markdown("---")
     st.markdown(
         "<div style='font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
@@ -528,7 +563,7 @@ if "resultados" in st.session_state:
         f"Descartados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
 
-    # 8. Generar combinaciones de 5 números sin repetir números entre combinaciones.
+    # 9. Generar combinaciones de 5 números sin repetir números entre combinaciones.
     # Cada combinación completa usa exactamente 2 grupos con 2 números y 1 grupo con 1 número.
     numeros_disponibles = sorted(set(restantes))
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
