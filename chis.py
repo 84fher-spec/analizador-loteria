@@ -358,87 +358,130 @@ if "resultados" in st.session_state:
 if "resultados" in st.session_state:
     resultados = st.session_state["resultados"]
     st.markdown("---")
-    st.subheader("🧹 Descarte de números")
+    st.subheader("🧹 Descarte de números (nivel 1)")
 
     # Todos los números posibles, inicialmente disponibles.
     disponibles = set(range(1, 29))
     descartados_totales = set()
 
-    def mostrar_numeros(titulo, numeros):
+    def mostrar_numeros(titulo, numeros, color="#000000"):
         numeros = sorted(set(int(n) for n in numeros))
-        st.markdown(f"**{titulo}**")
+        st.markdown(f"<span style='color:{color}; font-weight:bold;'>**{titulo}**</span>", unsafe_allow_html=True)
         if numeros:
-            st.write(", ".join(str(n) for n in numeros))
+            st.markdown(f"<span style='color:{color};'>{', '.join(str(n) for n in numeros)}</span>", unsafe_allow_html=True)
         else:
-            st.write("Ningún número")
+            st.markdown(f"<span style='color:{color};'>Ningún número</span>", unsafe_allow_html=True)
 
-    # 1–6. Descartar los dos niveles menos frecuentes y los dos más
-    # frecuentes de cada periodo, respetando el orden solicitado.
-    for periodo in ["15 días", "1 mes", "2 meses"]:
-        if periodo not in resultados:
-            st.warning(f"No hay datos disponibles para calcular el periodo de {periodo}.")
-            continue
+    # Rangos para cada decena por separado
+    rangos_decenas = {
+        "unidad": range(1, 10),
+        "decena": range(10, 20),
+        "veintena": range(20, 29)
+    }
 
-        serie = resultados[periodo]
-
-        # Dos niveles de menor frecuencia.
-        niveles_bajos = sorted(set(int(f) for f in serie.values))[:2]
-        candidatos_bajos = {
-            int(n) for n, frecuencia in serie.items()
-            if int(frecuencia) in niveles_bajos
-        }
-        descartados_bajos = candidatos_bajos & disponibles
-        disponibles -= descartados_bajos
-        descartados_totales |= descartados_bajos
-        mostrar_numeros(
-            f"Menos frecuentes, {periodo} (2 niveles)",
-            descartados_bajos
-        )
-
-    for periodo in ["15 días", "1 mes", "2 meses"]:
-        if periodo not in resultados:
-            continue
-
-        serie = resultados[periodo]
-
-        # Dos niveles de mayor frecuencia.
-        niveles_altos = sorted(
-            set(int(f) for f in serie.values),
-            reverse=True
-        )[:2]
-        candidatos_altos = {
-            int(n) for n, frecuencia in serie.items()
-            if int(frecuencia) in niveles_altos
-        }
-        descartados_altos = candidatos_altos & disponibles
-        disponibles -= descartados_altos
-        descartados_totales |= descartados_altos
-        mostrar_numeros(
-            f"Más frecuentes, {periodo} (2 niveles)",
-            descartados_altos
-        )
-
-    # Descartar los dos niveles menos frecuentes del histórico completo.
-    if "Histórico completo" in resultados:
-        serie_historica = resultados["Histórico completo"]
-        niveles_bajos_historicos = sorted(
-            set(int(f) for f in serie_historica.values)
-        )[:2]
-        candidatos_historicos = {
-            int(n) for n, frecuencia in serie_historica.items()
-            if int(frecuencia) in niveles_bajos_historicos
-        }
-        descartados_historicos = candidatos_historicos & disponibles
-        disponibles -= descartados_historicos
-        descartados_totales |= descartados_historicos
-        mostrar_numeros(
-            "Menos frecuentes, histórico completo (2 niveles)",
-            descartados_historicos
-        )
+    # 1. Menos frecuentes, 15 días (por cada decena)
+    if "15 días" in resultados:
+        serie = resultados["15 días"]
+        descartados_p1_n1 = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
+                if niveles_bajos:
+                    nivel_min = niveles_bajos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
+                    descartados_p1_n1 |= (candidatos & disponibles)
+        disponibles -= descartados_p1_n1
+        descartados_totales |= descartados_p1_n1
+        mostrar_numeros("Menos frecuentes, 15 días", descartados_p1_n1, color="#ff4b4b")
     else:
-        st.warning("No hay datos disponibles para el histórico completo.")
+        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
-    # 7. Descartar números que aparecieron 2 o más veces en los últimos 4 sorteos.
+    # 2. Menos frecuentes, 1 mes (por cada decena)
+    if "1 mes" in resultados:
+        serie = resultados["1 mes"]
+        descartados_p2_n1 = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
+                if niveles_bajos:
+                    nivel_min = niveles_bajos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
+                    descartados_p2_n1 |= (candidatos & disponibles)
+        disponibles -= descartados_p2_n1
+        descartados_totales |= descartados_p2_n1
+        mostrar_numeros("Menos frecuentes, 1 mes", descartados_p2_n1, color="#ff4b4b")
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 1 mes.")
+
+    # 3. Menos frecuentes, 2 meses (por cada decena)
+    if "2 meses" in resultados:
+        serie = resultados["2 meses"]
+        descartados_p3_n1 = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
+                if niveles_bajos:
+                    nivel_min = niveles_bajos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
+                    descartados_p3_n1 |= (candidatos & disponibles)
+        disponibles -= descartados_p3_n1
+        descartados_totales |= descartados_p3_n1
+        mostrar_numeros("Menos frecuentes, 2 meses", descartados_p3_n1, color="#ff4b4b")
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 2 meses.")
+
+    # 4. Más frecuentes, 15 días (por cada decena)
+    if "15 días" in resultados:
+        serie = resultados["15 días"]
+        descartados_p1_altos = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
+                if niveles_altos:
+                    nivel_max = niveles_altos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
+                    descartados_p1_altos |= (candidatos & disponibles)
+        disponibles -= descartados_p1_altos
+        descartados_totales |= descartados_p1_altos
+        mostrar_numeros("Más frecuentes, 15 días", descartados_p1_altos, color="#28a745")
+
+    # 5. Más frecuentes, 1 mes (por cada decena)
+    if "1 mes" in resultados:
+        serie = resultados["1 mes"]
+        descartados_p2_altos = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
+                if niveles_altos:
+                    nivel_max = niveles_altos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
+                    descartados_p2_altos |= (candidatos & disponibles)
+        disponibles -= descartados_p2_altos
+        descartados_totales |= descartados_p2_altos
+        mostrar_numeros("Más frecuentes, 1 mes", descartados_p2_altos, color="#28a745")
+
+    # 6. Más frecuentes, 2 meses (por cada decena)
+    if "2 meses" in resultados:
+        serie = resultados["2 meses"]
+        descartados_p3_altos = set()
+        for nombre_dec, rango_dec in rangos_decenas.items():
+            serie_dec = serie[serie.index.isin(rango_dec)]
+            if not serie_dec.empty:
+                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
+                if niveles_altos:
+                    nivel_max = niveles_altos[0]
+                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
+                    descartados_p3_altos |= (candidatos & disponibles)
+        disponibles -= descartados_p3_altos
+        descartados_totales |= descartados_p3_altos
+        mostrar_numeros("Más frecuentes, 2 meses", descartados_p3_altos, color="#28a745")
+
+    # 7. Descartar números que aparecieron 2 o más veces en los últimos 4 sorteos. (En AZUL)
     df_calculo_actual = st.session_state.get("df_calculo")
     columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
 
@@ -467,12 +510,13 @@ if "resultados" in st.session_state:
 
         mostrar_numeros(
             "Últimos 4 sorteos (2 o más apariciones)",
-            descartados_ultimos_4
+            descartados_ultimos_4,
+            color="#007bff"
         )
     else:
         st.warning("No se pudieron identificar los datos de los últimos 4 sorteos.")
 
-    # 8. Descartar los números del último sorteo registrado.
+    # 8. Descartar los números del último sorteo registrado. (En AZUL)
     columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
     df_calculo_actual = st.session_state.get("df_calculo")
     if df_calculo_actual is not None and all(columna in df_calculo_actual.columns for columna in columnas_numeros):
@@ -488,7 +532,8 @@ if "resultados" in st.session_state:
         descartados_totales |= descartados_ultimo_sorteo
         mostrar_numeros(
             "Último sorteo",
-            descartados_ultimo_sorteo
+            descartados_ultimo_sorteo,
+            color="#007bff"
         )
         st.caption(
             "Último sorteo: "
@@ -497,8 +542,6 @@ if "resultados" in st.session_state:
         )
     else:
         st.warning("No se pudieron identificar las columnas R1–R5 del último sorteo.")
-
-
 
     # 9. Mostrar los números restantes al final, después de todos los descartes.
     st.markdown("---")
@@ -529,7 +572,6 @@ if "resultados" in st.session_state:
     )
 
     # 10. Generar combinaciones de 5 números sin repetir números entre combinaciones.
-    # Cada combinación completa usa exactamente 2 grupos con 2 números y 1 grupo con 1 número.
     numeros_disponibles = sorted(set(restantes))
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
     decenas = [n for n in numeros_disponibles if 10 <= n <= 19]
@@ -537,13 +579,10 @@ if "resultados" in st.session_state:
     grupos_numeros = [unidades, decenas, veintenas]
     cantidades = [len(grupo) for grupo in grupos_numeros]
 
-    # Se busca la mayor cantidad posible de combinaciones completas válidas.
-    # Para cada combinación, cada grupo aporta al menos un número y dos grupos aportan dos.
     cantidad_combinaciones = 0
     asignacion_singulares = []
     for k in range(len(numeros_disponibles) // 5, 0, -1):
         opciones = []
-        # s[g] = cuántas combinaciones usan un número del grupo g y dos de los otros grupos.
         for s0 in range(k + 1):
             for s1 in range(k + 1):
                 s2 = k - s0 - s1
@@ -560,7 +599,6 @@ if "resultados" in st.session_state:
 
     mejores_combinaciones = []
     if cantidad_combinaciones:
-        # Crear la lista del grupo que aporta solo un número en cada combinación.
         grupos_singulares = []
         for indice_grupo, cantidad_singular in enumerate(asignacion_singulares):
             grupos_singulares.extend([indice_grupo] * cantidad_singular)
@@ -580,8 +618,6 @@ if "resultados" in st.session_state:
                 combinacion.extend(grupos_barajados[indice_grupo][inicio:fin])
                 posiciones[indice_grupo] = fin
 
-            # Validación final estricta: exactamente 5 números, sin duplicados,
-            # con unidades, decenas y veintenas presentes.
             if (
                 len(combinacion) == 5
                 and len(set(combinacion)) == 5
@@ -594,7 +630,6 @@ if "resultados" in st.session_state:
     numeros_usados = {n for combinacion in mejores_combinaciones for n in combinacion}
     numeros_incompletos = sorted(set(numeros_disponibles) - numeros_usados)
 
-    # Guardar el resultado para que el botón regenere usando los mismos números sobrevivientes.
     st.session_state["combinaciones_descartes"] = mejores_combinaciones
     st.session_state["incompletos_descartes"] = numeros_incompletos
 
@@ -612,6 +647,4 @@ if "resultados" in st.session_state:
             unsafe_allow_html=True
         )
 
-    # Streamlit vuelve a ejecutar el script al pulsar el botón; las frecuencias
-    # permanecen en session_state y se regeneran las combinaciones desde los restantes.
     st.button("Regenerar combinaciones")
