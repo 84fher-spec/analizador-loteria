@@ -358,7 +358,7 @@ if "resultados" in st.session_state:
 if "resultados" in st.session_state:
     resultados = st.session_state["resultados"]
     st.markdown("---")
-    st.subheader("🧹 Descarte de números (nivel 1)")
+    st.subheader("🧹Descarte de números (nivel 1)")
 
     # Todos los números posibles, inicialmente disponibles.
     disponibles = set(range(1, 29))
