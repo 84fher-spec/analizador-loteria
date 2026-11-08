@@ -284,7 +284,8 @@ if archivo is not None:
         etiquetas = {
             "15 días": 15,
             "1 mes": 30,
-            "2 meses": 60
+            "2 meses": 60,
+            "3 meses": 90
         }
         resultados = {}
 
@@ -293,10 +294,6 @@ if archivo is not None:
             if not datos.empty:
                 resultados[et] = calcular(datos)
 
-        # =========================================
-        # HISTÓRICO COMPLETO
-        # =========================================
-        resultados["Histórico completo"] = calcular(df_calculo)
         st.session_state["resultados"] = resultados
         st.session_state["df_calculo"] = df_calculo
 
@@ -310,7 +307,7 @@ if "resultados" in st.session_state:
     st.markdown("---")
     st.subheader("📊 Resultados por periodo")
 
-    periodos_mostrar = ["15 días", "1 mes", "2 meses", "Histórico completo"]
+    periodos_mostrar = ["15 días", "1 mes", "2 meses", "3 meses"]
     grupos = {
         "1-9": range(1, 10),
         "10-19": range(10, 20),
@@ -360,193 +357,150 @@ if "resultados" in st.session_state:
     st.markdown("---")
     st.subheader("🧹Descarte de números, nivel 1")
 
-    # Todos los números posibles, inicialmente disponibles.
     disponibles = set(range(1, 29))
     descartados_totales = set()
 
-    def mostrar_numeros(titulo, numeros, color="#000000"):
+    def mostrar_numeros(titulo, numeros, color="#000000", desactivado=False):
         numeros = sorted(set(int(n) for n in numeros))
-        st.markdown(f"<span style='color:{color}; font-weight:bold;'>**{titulo}**</span>", unsafe_allow_html=True)
-        if numeros:
-            st.markdown(f"<span style='color:{color};'>{', '.join(str(n) for n in numeros)}</span>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<span style='color:{color};'>Ningún número</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='color:{color};font-weight:bold;margin-top:5px;'>{titulo}</div>",
+            unsafe_allow_html=True
+        )
+        texto = ", ".join(str(n) for n in numeros) if numeros else "Ningún número"
+        st.markdown(
+            f"<div style='color:{color};'>{texto}</div>",
+            unsafe_allow_html=True
+        )
 
-    # Rangos para cada decena por separado
     rangos_decenas = {
         "unidad": range(1, 10),
         "decena": range(10, 20),
         "veintena": range(20, 29)
     }
 
-    # 1. Menos frecuentes, 15 días (por cada decena)
-    if "15 días" in resultados:
-        serie = resultados["15 días"]
-        descartados_p1_n1 = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
+    def obtener_candidatos_frecuencia(periodo, tipo):
+        if periodo not in resultados:
+            return None
+
+        serie = resultados[periodo]
+        candidatos_periodo = set()
+
+        for rango_dec in rangos_decenas.values():
             serie_dec = serie[serie.index.isin(rango_dec)]
             if not serie_dec.empty:
-                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
-                if niveles_bajos:
-                    nivel_min = niveles_bajos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
-                    descartados_p1_n1 |= (candidatos & disponibles)
-        disponibles -= descartados_p1_n1
-        descartados_totales |= descartados_p1_n1
-        mostrar_numeros("Menos frecuentes, 15 días", descartados_p1_n1, color="#ff4b4b")
-    else:
-        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
+                frecuencias = [int(f) for f in serie_dec.values]
+                nivel = min(frecuencias) if tipo == "menos" else max(frecuencias)
+                candidatos_periodo.update(
+                    int(n) for n, frecuencia in serie_dec.items()
+                    if int(frecuencia) == nivel
+                )
 
-    # 2. Menos frecuentes, 1 mes (por cada decena)
-    if "1 mes" in resultados:
-        serie = resultados["1 mes"]
-        descartados_p2_n1 = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
-            serie_dec = serie[serie.index.isin(rango_dec)]
-            if not serie_dec.empty:
-                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
-                if niveles_bajos:
-                    nivel_min = niveles_bajos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
-                    descartados_p2_n1 |= (candidatos & disponibles)
-        disponibles -= descartados_p2_n1
-        descartados_totales |= descartados_p2_n1
-        mostrar_numeros("Menos frecuentes, 1 mes", descartados_p2_n1, color="#ff4b4b")
-    else:
-        st.warning("No hay datos disponibles para calcular el periodo de 1 mes.")
+        return candidatos_periodo
 
-    # 3. Menos frecuentes, 2 meses (por cada decena)
-    if "2 meses" in resultados:
-        serie = resultados["2 meses"]
-        descartados_p3_n1 = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
-            serie_dec = serie[serie.index.isin(rango_dec)]
-            if not serie_dec.empty:
-                niveles_bajos = sorted(set(int(f) for f in serie_dec.values))
-                if niveles_bajos:
-                    nivel_min = niveles_bajos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_min}
-                    descartados_p3_n1 |= (candidatos & disponibles)
-        disponibles -= descartados_p3_n1
-        descartados_totales |= descartados_p3_n1
-        mostrar_numeros("Menos frecuentes, 2 meses", descartados_p3_n1, color="#ff4b4b")
-    else:
-        st.warning("No hay datos disponibles para calcular el periodo de 2 meses.")
+    def aplicar_y_mostrar(candidatos, titulo, color, activo):
+        afectados = candidatos & disponibles
+        if activo:
+            disponibles.difference_update(afectados)
+            descartados_totales.update(afectados)
+        mostrar_numeros(titulo, afectados, color=color, desactivado=not activo)
 
-    # 4. Más frecuentes, 15 días (por cada decena)
-    if "15 días" in resultados:
-        serie = resultados["15 días"]
-        descartados_p1_altos = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
-            serie_dec = serie[serie.index.isin(rango_dec)]
-            if not serie_dec.empty:
-                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
-                if niveles_altos:
-                    nivel_max = niveles_altos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
-                    descartados_p1_altos |= (candidatos & disponibles)
-        disponibles -= descartados_p1_altos
-        descartados_totales |= descartados_p1_altos
-        mostrar_numeros("Más frecuentes, 15 días", descartados_p1_altos, color="#28a745")
+    for periodo in ["15 días", "1 mes", "2 meses", "3 meses"]:
+        with st.container(border=True):
+            activar_periodo = st.checkbox(
+                f"Aplicar descartes de {periodo}",
+                value=True,
+                key=f"activar_descartes_{periodo.replace(' ', '_')}"
+            )
 
-    # 5. Más frecuentes, 1 mes (por cada decena)
-    if "1 mes" in resultados:
-        serie = resultados["1 mes"]
-        descartados_p2_altos = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
-            serie_dec = serie[serie.index.isin(rango_dec)]
-            if not serie_dec.empty:
-                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
-                if niveles_altos:
-                    nivel_max = niveles_altos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
-                    descartados_p2_altos |= (candidatos & disponibles)
-        disponibles -= descartados_p2_altos
-        descartados_totales |= descartados_p2_altos
-        mostrar_numeros("Más frecuentes, 1 mes", descartados_p2_altos, color="#28a745")
+            candidatos_mas = obtener_candidatos_frecuencia(periodo, "mas")
+            candidatos_menos = obtener_candidatos_frecuencia(periodo, "menos")
 
-    # 6. Más frecuentes, 2 meses (por cada decena)
-    if "2 meses" in resultados:
-        serie = resultados["2 meses"]
-        descartados_p3_altos = set()
-        for nombre_dec, rango_dec in rangos_decenas.items():
-            serie_dec = serie[serie.index.isin(rango_dec)]
-            if not serie_dec.empty:
-                niveles_altos = sorted(set(int(f) for f in serie_dec.values), reverse=True)
-                if niveles_altos:
-                    nivel_max = niveles_altos[0]
-                    candidatos = {int(n) for n, f in serie_dec.items() if int(f) == nivel_max}
-                    descartados_p3_altos |= (candidatos & disponibles)
-        disponibles -= descartados_p3_altos
-        descartados_totales |= descartados_p3_altos
-        mostrar_numeros("Más frecuentes, 2 meses", descartados_p3_altos, color="#28a745")
+            if candidatos_mas is None or candidatos_menos is None:
+                st.warning(f"No hay datos disponibles para calcular el periodo de {periodo}.")
+            else:
+                aplicar_y_mostrar(
+                    candidatos_mas,
+                    f"Más frecuentes, {periodo}",
+                    "#28a745",
+                    activar_periodo
+                )
+                aplicar_y_mostrar(
+                    candidatos_menos,
+                    f"Menos frecuentes, {periodo}",
+                    "#ff4b4b",
+                    activar_periodo
+                )
 
-    # 7. Descartar números que aparecieron 2 o más veces en los últimos 4 sorteos. (En AZUL)
-    df_calculo_actual = st.session_state.get("df_calculo")
-    columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
-
-    if (
-        df_calculo_actual is not None
-        and all(columna in df_calculo_actual.columns for columna in columnas_numeros)
-    ):
-        ultimos_4 = df_calculo_actual.sort_values("fecha").tail(4)
-        numeros_ultimos_4 = (
-            ultimos_4[columnas_numeros]
-            .apply(pd.to_numeric, errors="coerce")
-            .stack()
+    with st.container(border=True):
+        activar_ultimos_sorteos = st.checkbox(
+            "Aplicar descartes de los últimos 4 sorteos y del último sorteo",
+            value=True,
+            key="activar_descartes_ultimos_sorteos"
         )
-        numeros_ultimos_4 = numeros_ultimos_4[
-            numeros_ultimos_4.between(1, 28)
-        ].astype(int)
 
-        frecuencias_ultimos_4 = numeros_ultimos_4.value_counts()
-        descartados_ultimos_4_candidatos = set(
-            int(n) for n, frecuencia in frecuencias_ultimos_4.items()
-            if int(frecuencia) >= 2
+        df_calculo_actual = st.session_state.get("df_calculo")
+        columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
+
+        if (
+            df_calculo_actual is not None
+            and all(columna in df_calculo_actual.columns for columna in columnas_numeros)
+        ):
+            ultimos_4 = df_calculo_actual.sort_values("fecha").tail(4)
+            numeros_ultimos_4 = (
+                ultimos_4[columnas_numeros]
+                .apply(pd.to_numeric, errors="coerce")
+                .stack()
+            )
+            numeros_ultimos_4 = numeros_ultimos_4[
+                numeros_ultimos_4.between(1, 28)
+            ].astype(int)
+
+            frecuencias_ultimos_4 = numeros_ultimos_4.value_counts()
+            candidatos_ultimos_4 = {
+                int(n) for n, frecuencia in frecuencias_ultimos_4.items()
+                if int(frecuencia) >= 2
+            }
+
+            # CORRECCIÓN 2: Color rojo (#ff4b4b) para "Últimos 4 sorteos"
+            aplicar_y_mostrar(
+                candidatos_ultimos_4,
+                "Últimos 4 sorteos (2 o más apariciones)",
+                "#ff4b4b",
+                activar_ultimos_sorteos
+            )
+
+            ultimo_registro = df_calculo_actual.sort_values("fecha").iloc[-1]
+            candidatos_ultimo_sorteo = set()
+            for columna in columnas_numeros:
+                valor = pd.to_numeric(ultimo_registro[columna], errors="coerce")
+                if pd.notna(valor) and 1 <= int(valor) <= 28:
+                    candidatos_ultimo_sorteo.add(int(valor))
+
+            # CORRECCIÓN 2: Color rojo (#ff4b4b) para "Último sorteo"
+            aplicar_y_mostrar(
+                candidatos_ultimo_sorteo,
+                "Último sorteo",
+                "#ff4b4b",
+                activar_ultimos_sorteos
+            )
+        else:
+            st.warning("No se pudieron identificar las columnas R1–R5 de los últimos sorteos.")
+
+    # CORRECCIÓN 1: Renglón con los números del último sorteo en color gris (#888)
+    if df_calculo_actual is not None and not df_calculo_actual.empty:
+        ultimo_registro_fila = df_calculo_actual.sort_values("fecha").iloc[-1]
+        nums_ultimo = [int(ultimo_registro_fila[col]) for col in columnas_numeros if pd.notna(ultimo_registro_fila[col])]
+        nums_ultimo_str = ", ".join(str(n) for n in sorted(nums_ultimo))
+        st.markdown(
+            f"<div style='color:#888;font-size:16px;margin-top:10px;margin-bottom:10px;'>"
+            f"<b>Números del último sorteo:</b> {nums_ultimo_str}</div>",
+            unsafe_allow_html=True
         )
-        descartados_ultimos_4 = descartados_ultimos_4_candidatos & disponibles
-        disponibles -= descartados_ultimos_4
-        descartados_totales |= descartados_ultimos_4
 
-        mostrar_numeros(
-            "Últimos 4 sorteos (2 o más apariciones)",
-            descartados_ultimos_4,
-            color="#007bff"
-        )
-    else:
-        st.warning("No se pudieron identificar los datos de los últimos 4 sorteos.")
-
-    # 8. Descartar los números del último sorteo registrado. (En AZUL)
-    columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
-    df_calculo_actual = st.session_state.get("df_calculo")
-    if df_calculo_actual is not None and all(columna in df_calculo_actual.columns for columna in columnas_numeros):
-        ultimo_registro = df_calculo_actual.sort_values("fecha").iloc[-1]
-        numeros_ultimo_sorteo = set()
-        for columna in columnas_numeros:
-            valor = pd.to_numeric(ultimo_registro[columna], errors="coerce")
-            if pd.notna(valor) and 1 <= int(valor) <= 28:
-                numeros_ultimo_sorteo.add(int(valor))
-
-        descartados_ultimo_sorteo = numeros_ultimo_sorteo & disponibles
-        disponibles -= descartados_ultimo_sorteo
-        descartados_totales |= descartados_ultimo_sorteo
-        mostrar_numeros(
-            "Último sorteo",
-            descartados_ultimo_sorteo,
-            color="#007bff"
-        )
-        st.caption(
-            "Último sorteo: "
-            + (", ".join(str(n) for n in sorted(numeros_ultimo_sorteo))
-               if numeros_ultimo_sorteo else "No se encontraron números válidos")
-        )
-    else:
-        st.warning("No se pudieron identificar las columnas R1–R5 del último sorteo.")
-
-    # 9. Mostrar los números restantes al final, después de todos los descartes.
+    # CORRECCIÓN 3: Color azul (#007bff) para "Números restantes"
     st.markdown("---")
     st.markdown(
-        "<div style='font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
+        "<div style='color:#007bff;font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
         unsafe_allow_html=True
     )
     restantes = sorted(disponibles)
@@ -559,7 +513,7 @@ if "resultados" in st.session_state:
         for fila in filas_por_decena:
             if fila:
                 st.markdown(
-                    f"<div style='font-size:22px;font-weight:700;line-height:1.7;'>"
+                    f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
                     f"{', '.join(str(n) for n in fila)}</div>",
                     unsafe_allow_html=True
                 )
@@ -571,7 +525,6 @@ if "resultados" in st.session_state:
         f"Total eliminados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
 
-    # 10. Generar combinaciones de 5 números sin repetir números entre combinaciones.
     numeros_disponibles = sorted(set(restantes))
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
     decenas = [n for n in numeros_disponibles if 10 <= n <= 19]
@@ -633,16 +586,17 @@ if "resultados" in st.session_state:
     st.session_state["combinaciones_descartes"] = mejores_combinaciones
     st.session_state["incompletos_descartes"] = numeros_incompletos
 
+    # CORRECCIÓN 3: Color azul (#007bff) para las combinaciones generadas
     for combinacion in mejores_combinaciones:
         st.markdown(
-            f"<div style='font-size:22px;font-weight:700;line-height:1.7;'>"
+            f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
             f"{', '.join(str(n) for n in combinacion)}</div>",
             unsafe_allow_html=True
         )
 
     if numeros_incompletos:
         st.markdown(
-            f"<div style='font-size:22px;font-weight:700;line-height:1.7;'>"
+            f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
             f"{', '.join(str(n) for n in numeros_incompletos)}</div>",
             unsafe_allow_html=True
         )
