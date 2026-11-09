@@ -145,7 +145,7 @@ if "resultados" in st.session_state:
     disponibles = set(range(1, 29))
     descartados_totales = set()
 
-    def mostrar_numeros(titulo, numeros, color="#000000", desactivado=False):
+    def mostrar_numeros(titulo, numeros, color="#000000"):
         numeros = sorted(set(int(n) for n in numeros))
         st.markdown(
             f"<div style='color:{color};font-weight:bold;margin-top:5px;'>{titulo}</div>",
@@ -182,21 +182,14 @@ if "resultados" in st.session_state:
 
         return candidatos_periodo
 
-    def aplicar_y_mostrar(candidatos, titulo, color, activo):
+    def aplicar_y_mostrar(candidatos, titulo, color):
         afectados = candidatos & disponibles
-        if activo:
-            disponibles.difference_update(afectados)
-            descartados_totales.update(afectados)
-        mostrar_numeros(titulo, afectados, color=color, desactivado=not activo)
+        disponibles.difference_update(afectados)
+        descartados_totales.update(afectados)
+        mostrar_numeros(titulo, afectados, color=color)
 
     for periodo in ["15 días", "1 mes", "2 meses", "3 meses"]:
         with st.container(border=True):
-            activar_periodo = st.checkbox(
-                "Aplicar",
-                value=True,
-                key=f"activar_descartes_{periodo.replace(' ', '_')}"
-            )
-
             candidatos_mas = obtener_candidatos_frecuencia(periodo, "mas")
             candidatos_menos = obtener_candidatos_frecuencia(periodo, "menos")
 
@@ -206,23 +199,15 @@ if "resultados" in st.session_state:
                 aplicar_y_mostrar(
                     candidatos_mas,
                     f"Más frecuentes, {periodo}",
-                    "#28a745",
-                    activar_periodo
+                    "#28a745"
                 )
                 aplicar_y_mostrar(
                     candidatos_menos,
                     f"Menos frecuentes, {periodo}",
-                    "#ff4b4b",
-                    activar_periodo
+                    "#ff4b4b"
                 )
 
     with st.container(border=True):
-        activar_ultimos_sorteos = st.checkbox(
-            "Aplicar",
-            value=True,
-            key="activar_descartes_ultimos_sorteos"
-        )
-
         df_calculo_actual = st.session_state.get("df_calculo")
         columnas_numeros = ["r1", "r2", "r3", "r4", "r5"]
 
@@ -249,8 +234,7 @@ if "resultados" in st.session_state:
             aplicar_y_mostrar(
                 candidatos_ultimos_4,
                 "Últimos 4 sorteos (2 o más apariciones)",
-                "#007bff",
-                activar_ultimos_sorteos
+                "#007bff"
             )
 
             ultimo_registro = df_calculo_actual.sort_values("fecha").iloc[-1]
@@ -263,11 +247,9 @@ if "resultados" in st.session_state:
             aplicar_y_mostrar(
                 candidatos_ultimo_sorteo,
                 "Último sorteo",
-                "#007bff",
-                activar_ultimos_sorteos
+                "#007bff"
             )
 
-            # --- Renglón con los números del último sorteo dentro del cuadro ---
             nums_ultimo = [int(ultimo_registro[col]) for col in columnas_numeros if pd.notna(ultimo_registro[col])]
             nums_ultimo_str = ", ".join(str(n) for n in sorted(nums_ultimo))
             st.markdown(
