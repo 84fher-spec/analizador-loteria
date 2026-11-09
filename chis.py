@@ -67,178 +67,13 @@ def seleccionar_grupo(candidatos, todos, cantidad):
 
 
 # =========================================
-# 15 NÚMEROS (5-5-5 EXACTO)
-# =========================================
-
-def seleccionar_15_intermedios(base, full):
-    u_base, d_base, v_base = clasificar_numeros(base)
-    u_full, d_full, v_full = clasificar_numeros(full)
-
-    sel_u = seleccionar_grupo(u_base, u_full, 5)
-    sel_d = seleccionar_grupo(d_base, d_full, 5)
-    sel_v = seleccionar_grupo(v_base, v_full, 5)
-
-    return sel_u + sel_d + sel_v
-
-
-# =========================================
-# 10 NÚMEROS (3-4-3 EXACTO)
-# =========================================
-
-def seleccionar_10_intermedios(base, full):
-    u_base, d_base, v_base = clasificar_numeros(base)
-    u_full, d_full, v_full = clasificar_numeros(full)
-
-    sel_u = seleccionar_grupo(u_base, u_full, 3)
-    sel_d = seleccionar_grupo(d_base, d_full, 4)
-    sel_v = seleccionar_grupo(v_base, v_full, 3)
-
-    return sel_u + sel_d + sel_v
-
-
-# =========================================
-# GENERADOR (MODIFICADO)
-# =========================================
-
-def generar(pool_base, repeticiones):
-    total_nums = len(pool_base)
-    num_combinaciones = total_nums // 5  # 15→3, 10→2
-
-    def generar_nivel(nivel):
-        for _ in range(5000):
-            pool = pool_base[:]
-            random.shuffle(pool)
-            temp = []
-            valido = True
-
-            for i in range(num_combinaciones):
-                comb = sorted(pool[i * 5:(i + 1) * 5])
-
-                if len(set(comb)) < 5:
-                    valido = False
-                    break
-
-                if nivel == 1:
-                    if not pares_nones_ok(comb):
-                        valido = False
-                        break
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-                elif nivel == 2:
-                    if contar_consecutivos(comb) > 0:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 3):
-                        valido = False
-                        break
-                elif nivel == 3:
-                    if contar_consecutivos(comb) > 1:
-                        valido = False
-                        break
-                    if not decenas_ok(comb, 2):
-                        valido = False
-                        break
-
-                temp.append(comb)
-
-            if valido and len(set(tuple(c) for c in temp)) == num_combinaciones:
-                return temp, nivel
-
-        return None, None
-
-    for nivel in [1, 2, 3]:
-        r, n = generar_nivel(nivel)
-        if r:
-            return r, n
-
-    return None, None
-
-
-# =========================================
-# GENERAR 3 COMBINACIONES DESDE SELECCIÓN
-# =========================================
-
-def generar_3_combinaciones_semana(numeros):
-    numeros = list(dict.fromkeys(int(n) for n in numeros))
-
-    if len(numeros) < 5:
-        return []
-
-    cantidad_total = min(15, len(numeros))
-    objetivo = cantidad_total
-    mejor_combinaciones = None
-    mejor_puntuacion = None
-
-    for _ in range(5000):
-        if len(numeros) > objetivo:
-            mejor_local = None
-            mejor_score_local = None
-
-            for _ in range(100):
-                prueba = random.sample(numeros, objetivo)
-                cantidades = [
-                    sum(1 for n in prueba if 1 <= n <= 9),
-                    sum(1 for n in prueba if 10 <= n <= 19),
-                    sum(1 for n in prueba if 20 <= n <= 28)
-                ]
-                score = max(cantidades) - min(cantidades)
-
-                if mejor_score_local is None or score < mejor_score_local:
-                    mejor_score_local = score
-                    mejor_local = prueba
-                    if score == 0:
-                        break
-
-            seleccion = mejor_local
-        else:
-            seleccion = numeros[:]
-
-        random.shuffle(seleccion)
-        combinaciones = [seleccion[i:i + 5] for i in range(0, len(seleccion), 5)]
-
-        if len(combinaciones) < 3 or any(len(c) < 5 for c in combinaciones):
-            continue
-
-        combinaciones = [sorted(c) for c in combinaciones]
-        cantidades_globales = [
-            sum(1 for n in seleccion if 1 <= n <= 9),
-            sum(1 for n in seleccion if 10 <= n <= 19),
-            sum(1 for n in seleccion if 20 <= n <= 28)
-        ]
-        diferencia_global = max(cantidades_globales) - min(cantidades_globales)
-        diferencia_combos = 0
-        concentracion = 0
-
-        for comb in combinaciones:
-            cantidades = [
-                sum(1 for n in comb if 1 <= n <= 9),
-                sum(1 for n in comb if 10 <= n <= 19),
-                sum(1 for n in comb if 20 <= n <= 28)
-            ]
-            diferencia_combos += max(cantidades) - min(cantidades)
-            if max(cantidades) >= 4:
-                concentracion += 3
-
-        puntuacion = diferencia_global * 10 + diferencia_combos + concentracion
-
-        if mejor_puntuacion is None or puntuacion < mejor_puntuacion:
-            mejor_puntuacion = puntuacion
-            mejor_combinaciones = combinaciones
-
-    return mejor_combinaciones if mejor_combinaciones else []
-
-
-# =========================================
 # CARGA CSV
 # =========================================
 
 archivo = st.file_uploader("📂 Selecciona el archivo CSV")
 
 if archivo is not None:
+    archivo.seek(0)
     df = pd.read_csv(io.BytesIO(archivo.read()), encoding="latin-1")
     df.columns = df.columns.str.strip().str.lower()
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True, errors="coerce")
@@ -296,56 +131,6 @@ if archivo is not None:
 
         st.session_state["resultados"] = resultados
         st.session_state["df_calculo"] = df_calculo
-
-
-# =========================================
-# RESULTADOS AGRUPADOS POR DECENAS
-# =========================================
-
-if "resultados" in st.session_state:
-    r = st.session_state["resultados"]
-    st.markdown("---")
-    st.subheader("📊 Resultados por periodo")
-
-    periodos_mostrar = ["15 días", "1 mes", "2 meses", "3 meses"]
-    grupos = {
-        "1-9": range(1, 10),
-        "10-19": range(10, 20),
-        "20-28": range(20, 29)
-    }
-
-    for periodo in periodos_mostrar:
-        if periodo in r:
-            st.markdown(f"#### 📅 {periodo}")
-            serie = r[periodo]
-            bloques_html = ""
-
-            for nombre_grupo, rango in grupos.items():
-                grupo = serie[serie.index.isin(rango)].sort_values(ascending=False)
-                lista_html = ""
-
-                for numero, frecuencia in grupo.items():
-                    lista_html += (
-                        f"<div style='text-align:center;margin:2px 0;white-space:nowrap;"
-                        f"font-size:17px;line-height:1.25;'>"
-                        f"<span style='font-weight:600;'>{numero}</span> "
-                        f"<span style='color:#888;'>({frecuencia})</span></div>"
-                    )
-
-                bloques_html += (
-                    f"<div style='flex:1 1 0;min-width:0;width:33.333%;box-sizing:border-box;padding:0 2px;'>"
-                    f"<div style='text-align:center;font-weight:bold;margin-bottom:6px;"
-                    f"white-space:nowrap;font-size:14px;'>{nombre_grupo}</div>"
-                    f"{lista_html}</div>"
-                )
-
-            st.markdown(
-                f"<div style='display:flex;flex-direction:row;flex-wrap:nowrap;width:100%;"
-                f"max-width:100%;box-sizing:border-box;overflow:hidden;align-items:flex-start;"
-                f"justify-content:space-between;'>{bloques_html}</div>",
-                unsafe_allow_html=True
-            )
-            st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
 
 
 # =========================================
@@ -407,7 +192,7 @@ if "resultados" in st.session_state:
     for periodo in ["15 días", "1 mes", "2 meses", "3 meses"]:
         with st.container(border=True):
             activar_periodo = st.checkbox(
-                f"Aplicar descartes de {periodo}",
+                "Aplicar",
                 value=True,
                 key=f"activar_descartes_{periodo.replace(' ', '_')}"
             )
@@ -433,7 +218,7 @@ if "resultados" in st.session_state:
 
     with st.container(border=True):
         activar_ultimos_sorteos = st.checkbox(
-            "Aplicar descartes de los últimos 4 sorteos y del último sorteo",
+            "Aplicar",
             value=True,
             key="activar_descartes_ultimos_sorteos"
         )
@@ -461,11 +246,10 @@ if "resultados" in st.session_state:
                 if int(frecuencia) >= 2
             }
 
-            # CORRECCIÓN 2: Color rojo (#ff4b4b) para "Últimos 4 sorteos"
             aplicar_y_mostrar(
                 candidatos_ultimos_4,
                 "Últimos 4 sorteos (2 o más apariciones)",
-                "#ff4b4b",
+                "#007bff",
                 activar_ultimos_sorteos
             )
 
@@ -476,31 +260,27 @@ if "resultados" in st.session_state:
                 if pd.notna(valor) and 1 <= int(valor) <= 28:
                     candidatos_ultimo_sorteo.add(int(valor))
 
-            # CORRECCIÓN 2: Color rojo (#ff4b4b) para "Último sorteo"
             aplicar_y_mostrar(
                 candidatos_ultimo_sorteo,
                 "Último sorteo",
-                "#ff4b4b",
+                "#007bff",
                 activar_ultimos_sorteos
+            )
+
+            # --- Renglón con los números del último sorteo dentro del cuadro ---
+            nums_ultimo = [int(ultimo_registro[col]) for col in columnas_numeros if pd.notna(ultimo_registro[col])]
+            nums_ultimo_str = ", ".join(str(n) for n in sorted(nums_ultimo))
+            st.markdown(
+                f"<div style='color:#888;font-size:16px;margin-top:10px;margin-bottom:5px;'>"
+                f"<b>Último sorteo:</b> {nums_ultimo_str}</div>",
+                unsafe_allow_html=True
             )
         else:
             st.warning("No se pudieron identificar las columnas R1–R5 de los últimos sorteos.")
 
-    # CORRECCIÓN 1: Renglón con los números del último sorteo en color gris (#888)
-    if df_calculo_actual is not None and not df_calculo_actual.empty:
-        ultimo_registro_fila = df_calculo_actual.sort_values("fecha").iloc[-1]
-        nums_ultimo = [int(ultimo_registro_fila[col]) for col in columnas_numeros if pd.notna(ultimo_registro_fila[col])]
-        nums_ultimo_str = ", ".join(str(n) for n in sorted(nums_ultimo))
-        st.markdown(
-            f"<div style='color:#888;font-size:16px;margin-top:10px;margin-bottom:10px;'>"
-            f"<b>Números del último sorteo:</b> {nums_ultimo_str}</div>",
-            unsafe_allow_html=True
-        )
-
-    # CORRECCIÓN 3: Color azul (#007bff) para "Números restantes"
     st.markdown("---")
     st.markdown(
-        "<div style='color:#007bff;font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
+        "<div style='color:#28a745;font-size:20px;font-weight:600;margin-bottom:8px;'>Números restantes</div>",
         unsafe_allow_html=True
     )
     restantes = sorted(disponibles)
@@ -513,7 +293,7 @@ if "resultados" in st.session_state:
         for fila in filas_por_decena:
             if fila:
                 st.markdown(
-                    f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
+                    f"<div style='color:#28a745;font-size:22px;font-weight:700;line-height:1.7;'>"
                     f"{', '.join(str(n) for n in fila)}</div>",
                     unsafe_allow_html=True
                 )
@@ -550,6 +330,7 @@ if "resultados" in st.session_state:
             asignacion_singulares = random.choice(opciones)
             break
 
+    posiciones = [0, 0, 0]
     mejores_combinaciones = []
     if cantidad_combinaciones:
         grupos_singulares = []
@@ -560,7 +341,6 @@ if "resultados" in st.session_state:
         grupos_barajados = [grupo[:] for grupo in grupos_numeros]
         for grupo in grupos_barajados:
             random.shuffle(grupo)
-        posiciones = [0, 0, 0]
 
         for grupo_singular in grupos_singulares:
             combinacion = []
@@ -586,17 +366,16 @@ if "resultados" in st.session_state:
     st.session_state["combinaciones_descartes"] = mejores_combinaciones
     st.session_state["incompletos_descartes"] = numeros_incompletos
 
-    # CORRECCIÓN 3: Color azul (#007bff) para las combinaciones generadas
     for combinacion in mejores_combinaciones:
         st.markdown(
-            f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
+            f"<div style='color:#28a745;font-size:22px;font-weight:700;line-height:1.7;'>"
             f"{', '.join(str(n) for n in combinacion)}</div>",
             unsafe_allow_html=True
         )
 
     if numeros_incompletos:
         st.markdown(
-            f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
+            f"<div style='color:#28a745;font-size:22px;font-weight:700;line-height:1.7;'>"
             f"{', '.join(str(n) for n in numeros_incompletos)}</div>",
             unsafe_allow_html=True
         )
