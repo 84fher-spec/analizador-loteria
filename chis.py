@@ -184,7 +184,7 @@ if "resultados" in st.session_state:
         st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
     st.markdown("---")
-    st.subheader("🧹 Descarte de números, nivel 1")
+    st.subheader("🧹Descarte de números, nivel 1")
 
     disponibles = set(range(1, 29))
     descartados_totales = set()
