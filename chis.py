@@ -139,6 +139,50 @@ if archivo is not None:
 
 if "resultados" in st.session_state:
     resultados = st.session_state["resultados"]
+
+    # Resultados del periodo de 15 días con el diseño del código de referencia.
+    st.markdown("---")
+    st.subheader("📊 Resultados por periodo")
+
+    if "15 días" in resultados:
+        st.markdown("#### 📅 15 días")
+        serie = resultados["15 días"]
+        bloques_html = ""
+        grupos = {
+            "1-9": range(1, 10),
+            "10-19": range(10, 20),
+            "20-28": range(20, 29)
+        }
+
+        for nombre_grupo, rango in grupos.items():
+            grupo = serie[serie.index.isin(rango)].sort_values(ascending=False)
+            lista_html = ""
+
+            for numero, frecuencia in grupo.items():
+                lista_html += (
+                    f"<div style='text-align:center;margin:2px 0;white-space:nowrap;"
+                    f"font-size:17px;line-height:1.25;'>"
+                    f"<span style='font-weight:600;'>{int(numero)}</span> "
+                    f"<span style='color:#888;'>({int(frecuencia)})</span></div>"
+                )
+
+            bloques_html += (
+                f"<div style='flex:1 1 0;min-width:0;width:33.333%;box-sizing:border-box;padding:0 2px;'>"
+                f"<div style='text-align:center;font-weight:bold;margin-bottom:6px;"
+                f"white-space:nowrap;font-size:14px;'>{nombre_grupo}</div>"
+                f"{lista_html}</div>"
+            )
+
+        st.markdown(
+            f"<div style='display:flex;flex-direction:row;flex-wrap:nowrap;width:100%;"
+            f"max-width:100%;box-sizing:border-box;overflow:hidden;align-items:flex-start;"
+            f"justify-content:space-between;'>{bloques_html}</div>",
+            unsafe_allow_html=True
+        )
+        st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
+
     st.markdown("---")
     st.subheader("🧹Descarte de números, nivel 1")
 
@@ -187,6 +231,7 @@ if "resultados" in st.session_state:
         disponibles.difference_update(afectados)
         descartados_totales.update(afectados)
         mostrar_numeros(titulo, afectados, color=color)
+        return afectados
 
     for periodo in ["15 días", "1 mes", "2 meses", "3 meses"]:
         with st.container(border=True):
@@ -231,10 +276,18 @@ if "resultados" in st.session_state:
                 if int(frecuencia) >= 2
             }
 
-            aplicar_y_mostrar(
+            descartados_ultimos_4 = aplicar_y_mostrar(
                 candidatos_ultimos_4,
                 "Últimos 4 sorteos (2 o más apariciones)",
                 "#007bff"
+            )
+            numeros_descartados_ultimos_4 = ", ".join(
+                str(n) for n in sorted(descartados_ultimos_4)
+            ) if descartados_ultimos_4 else "Ningún número"
+            st.markdown(
+                f"<div style='color:#888;font-size:15px;margin-top:4px;'>"
+                f"{numeros_descartados_ultimos_4}</div>",
+                unsafe_allow_html=True
             )
 
             ultimo_registro = df_calculo_actual.sort_values("fecha").iloc[-1]
