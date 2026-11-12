@@ -184,7 +184,7 @@ if "resultados" in st.session_state:
         st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
     st.markdown("---")
-    st.subheader("🧹Descarte de números, nivel 1")
+    st.subheader("🧹 Descarte de números, nivel 1")
 
     disponibles = set(range(1, 29))
     descartados_totales = set()
@@ -276,17 +276,21 @@ if "resultados" in st.session_state:
                 if int(frecuencia) >= 2
             }
 
-            descartados_ultimos_4 = aplicar_y_mostrar(
+            # 1. Se aplican y muestran los descartes reales en el sistema
+            aplicar_y_mostrar(
                 candidatos_ultimos_4,
                 "Últimos 4 sorteos (2 o más apariciones)",
                 "#007bff"
             )
-            numeros_descartados_ultimos_4 = ", ".join(
-                str(n) for n in sorted(descartados_ultimos_4)
-            ) if descartados_ultimos_4 else "Ningún número"
+            
+            # 2. CORRECCIÓN: Se muestran TODOS los números completos (independientemente de descartes previos) en el renglón gris
+            numeros_completos_ultimos_4 = ", ".join(
+                str(n) for n in sorted(candidatos_ultimos_4)
+            ) if candidatos_ultimos_4 else "Ningún número"
+            
             st.markdown(
                 f"<div style='color:#888;font-size:15px;margin-top:4px;'>"
-                f"{numeros_descartados_ultimos_4}</div>",
+                f"{numeros_completos_ultimos_4}</div>",
                 unsafe_allow_html=True
             )
 
