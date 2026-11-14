@@ -140,10 +140,11 @@ if archivo is not None:
 if "resultados" in st.session_state:
     resultados = st.session_state["resultados"]
 
-    # Resultados del periodo de 1 semana con el mismo diseño.
+    # Resultados por periodo con el mismo diseño.
     st.markdown("---")
     st.subheader("📊 Resultados por periodo")
 
+    # 1 semana
     if "1 semana" in resultados:
         st.markdown("#### 📅 1 semana")
         serie = resultados["1 semana"]
@@ -182,6 +183,46 @@ if "resultados" in st.session_state:
         st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
     else:
         st.warning("No hay datos disponibles para calcular el periodo de 1 semana.")
+
+    # 15 días (Agregado con el mismo formato y diseño)
+    if "15 días" in resultados:
+        st.markdown("#### 📅 15 días")
+        serie_15 = resultados["15 días"]
+        bloques_html_15 = ""
+        grupos = {
+            "1-9": range(1, 10),
+            "10-19": range(10, 20),
+            "20-28": range(20, 29)
+        }
+
+        for nombre_grupo, rango in grupos.items():
+            grupo = serie_15[serie_15.index.isin(rango)].sort_values(ascending=False)
+            lista_html = ""
+
+            for numero, frecuencia in grupo.items():
+                lista_html += (
+                    f"<div style='text-align:center;margin:2px 0;white-space:nowrap;"
+                    f"font-size:17px;line-height:1.25;'>"
+                    f"<span style='font-weight:600;'>{int(numero)}</span> "
+                    f"<span style='color:#888;'>({int(frecuencia)})</span></div>"
+                )
+
+            bloques_html_15 += (
+                f"<div style='flex:1 1 0;min-width:0;width:33.333%;box-sizing:border-box;padding:0 2px;'>"
+                f"<div style='text-align:center;font-weight:bold;margin-bottom:6px;"
+                f"white-space:nowrap;font-size:14px;'>{nombre_grupo}</div>"
+                f"{lista_html}</div>"
+            )
+
+        st.markdown(
+            f"<div style='display:flex;flex-direction:row;flex-wrap:nowrap;width:100%;"
+            f"max-width:100%;box-sizing:border-box;overflow:hidden;align-items:flex-start;"
+            f"justify-content:space-between;'>{bloques_html_15}</div>",
+            unsafe_allow_html=True
+        )
+        st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
+    else:
+        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
     st.markdown("---")
     st.subheader("🧹Descarte de números, nivel 1")
@@ -276,14 +317,12 @@ if "resultados" in st.session_state:
                 if int(frecuencia) >= 2
             }
 
-            # 1. Se aplican y muestran los descartes reales en el sistema
             aplicar_y_mostrar(
                 candidatos_ultimos_3,
                 "Últimos 3 sorteos (2 o más apariciones)",
                 "#007bff"
             )
             
-            # 2. CORRECCIÓN: Se muestran TODOS los números completos (independientemente de descartes previos) en el renglón gris
             numeros_completos_ultimos_3 = ", ".join(
                 str(n) for n in sorted(candidatos_ultimos_3)
             ) if candidatos_ultimos_3 else "Ningún número"
