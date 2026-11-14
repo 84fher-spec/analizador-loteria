@@ -117,10 +117,10 @@ if archivo is not None:
             return conteo.head(28)
 
         etiquetas = {
+            "1 semana": 7,
             "15 días": 15,
             "1 mes": 30,
-            "2 meses": 60,
-            "3 meses": 90
+            "2 meses": 60
         }
         resultados = {}
 
@@ -140,13 +140,13 @@ if archivo is not None:
 if "resultados" in st.session_state:
     resultados = st.session_state["resultados"]
 
-    # Resultados del periodo de 15 días con el diseño del código de referencia.
+    # Resultados del periodo de 1 semana con el mismo diseño.
     st.markdown("---")
     st.subheader("📊 Resultados por periodo")
 
-    if "15 días" in resultados:
-        st.markdown("#### 📅 15 días")
-        serie = resultados["15 días"]
+    if "1 semana" in resultados:
+        st.markdown("#### 📅 1 semana")
+        serie = resultados["1 semana"]
         bloques_html = ""
         grupos = {
             "1-9": range(1, 10),
@@ -181,7 +181,7 @@ if "resultados" in st.session_state:
         )
         st.markdown("<hr style='margin:12px 0;'>", unsafe_allow_html=True)
     else:
-        st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
+        st.warning("No hay datos disponibles para calcular el periodo de 1 semana.")
 
     st.markdown("---")
     st.subheader("🧹Descarte de números, nivel 1")
@@ -233,7 +233,7 @@ if "resultados" in st.session_state:
         mostrar_numeros(titulo, afectados, color=color)
         return afectados
 
-    for periodo in ["15 días", "1 mes", "2 meses", "3 meses"]:
+    for periodo in ["1 semana", "15 días", "1 mes", "2 meses"]:
         with st.container(border=True):
             candidatos_mas = obtener_candidatos_frecuencia(periodo, "mas")
             candidatos_menos = obtener_candidatos_frecuencia(periodo, "menos")
@@ -260,37 +260,37 @@ if "resultados" in st.session_state:
             df_calculo_actual is not None
             and all(columna in df_calculo_actual.columns for columna in columnas_numeros)
         ):
-            ultimos_4 = df_calculo_actual.sort_values("fecha").tail(4)
-            numeros_ultimos_4 = (
-                ultimos_4[columnas_numeros]
+            ultimos_3 = df_calculo_actual.sort_values("fecha").tail(3)
+            numeros_ultimos_3 = (
+                ultimos_3[columnas_numeros]
                 .apply(pd.to_numeric, errors="coerce")
                 .stack()
             )
-            numeros_ultimos_4 = numeros_ultimos_4[
-                numeros_ultimos_4.between(1, 28)
+            numeros_ultimos_3 = numeros_ultimos_3[
+                numeros_ultimos_3.between(1, 28)
             ].astype(int)
 
-            frecuencias_ultimos_4 = numeros_ultimos_4.value_counts()
-            candidatos_ultimos_4 = {
-                int(n) for n, frecuencia in frecuencias_ultimos_4.items()
+            frecuencias_ultimos_3 = numeros_ultimos_3.value_counts()
+            candidatos_ultimos_3 = {
+                int(n) for n, frecuencia in frecuencias_ultimos_3.items()
                 if int(frecuencia) >= 2
             }
 
             # 1. Se aplican y muestran los descartes reales en el sistema
             aplicar_y_mostrar(
-                candidatos_ultimos_4,
-                "Últimos 4 sorteos (2 o más apariciones)",
+                candidatos_ultimos_3,
+                "Últimos 3 sorteos (2 o más apariciones)",
                 "#007bff"
             )
             
             # 2. CORRECCIÓN: Se muestran TODOS los números completos (independientemente de descartes previos) en el renglón gris
-            numeros_completos_ultimos_4 = ", ".join(
-                str(n) for n in sorted(candidatos_ultimos_4)
-            ) if candidatos_ultimos_4 else "Ningún número"
+            numeros_completos_ultimos_3 = ", ".join(
+                str(n) for n in sorted(candidatos_ultimos_3)
+            ) if candidatos_ultimos_3 else "Ningún número"
             
             st.markdown(
                 f"<div style='color:#888;font-size:15px;margin-top:4px;'>"
-                f"{numeros_completos_ultimos_4}</div>",
+                f"{numeros_completos_ultimos_3}</div>",
                 unsafe_allow_html=True
             )
 
