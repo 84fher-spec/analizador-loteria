@@ -3,7 +3,6 @@ import pandas as pd
 import io
 from datetime import timedelta
 import random
-from itertools import combinations, product
 
 # =========================================
 # CONFIGURACIÓN GENERAL
@@ -32,45 +31,6 @@ def pares_nones_ok(comb):
 def contar_consecutivos(comb):
     comb = sorted(comb)
     return sum(1 for i in range(len(comb) - 1) if comb[i] + 1 == comb[i + 1])
-
-
-# =========================================
-# MAXIMIZAR COMBINACIONES SIN REPETIR NÚMEROS
-# =========================================
-
-def seleccionar_maximo_sin_repetir(candidatas, limite=None, intentos=150):
-    candidatas = list(set(tuple(sorted(c)) for c in candidatas))
-
-    if not candidatas:
-        return []
-
-    mejor_resultado = []
-    objetivo = limite if limite is not None else float("inf")
-
-    for _ in range(intentos):
-        ordenadas = candidatas[:]
-        random.shuffle(ordenadas)
-
-        usadas = set()
-        resultado = []
-
-        for combinacion in ordenadas:
-            numeros = set(combinacion)
-
-            if not numeros.intersection(usadas):
-                resultado.append(list(combinacion))
-                usadas.update(numeros)
-
-                if len(resultado) >= objetivo:
-                    break
-
-        if len(resultado) > len(mejor_resultado):
-            mejor_resultado = resultado
-
-        if len(mejor_resultado) >= objetivo:
-            break
-
-    return mejor_resultado
 
 
 # =========================================
@@ -104,57 +64,6 @@ def seleccionar_grupo(candidatos, todos, cantidad):
         resultado.append(random.choice(todos))
 
     return resultado[:cantidad]
-
-
-# =========================================
-# GENERADOR 1-3-1
-# =========================================
-
-def generar_combinaciones_131(mas_frecuentes, intermedios, menos_frecuentes):
-
-    mas_frecuentes = sorted(set(mas_frecuentes))
-    intermedios = sorted(set(intermedios))
-    menos_frecuentes = sorted(set(menos_frecuentes))
-
-    if not mas_frecuentes or len(intermedios) < 3 or not menos_frecuentes:
-        return []
-
-    candidatas = []
-
-    for frecuente, tres_intermedios, menos in product(
-        mas_frecuentes,
-        combinations(intermedios, 3),
-        menos_frecuentes
-    ):
-        combinacion = tuple(sorted((frecuente, *tres_intermedios, menos)))
-
-        if len(set(combinacion)) != 5:
-            continue
-
-        unidades = sum(1 <= n <= 9 for n in combinacion)
-        decenas = sum(10 <= n <= 19 for n in combinacion)
-        veintenas = sum(20 <= n <= 28 for n in combinacion)
-
-        distribucion = sorted(
-            cantidad for cantidad in (unidades, decenas, veintenas)
-            if cantidad > 0
-        )
-
-        # Exactamente dos tipos de decenas: 3-2 o 2-3.
-        if distribucion == [2, 3]:
-            candidatas.append(combinacion)
-
-    limite_teorico = min(
-        len(mas_frecuentes),
-        len(intermedios) // 3,
-        len(menos_frecuentes)
-    )
-
-    return seleccionar_maximo_sin_repetir(
-        candidatas,
-        limite=limite_teorico,
-        intentos=200
-    )
 
 
 # =========================================
@@ -321,10 +230,6 @@ if "resultados" in st.session_state:
     disponibles = set(range(1, 29))
     descartados_totales = set()
 
-    # Acumulan únicamente los números que efectivamente se muestran en verde y rojo.
-    numeros_mas_frecuentes_131 = set()
-    numeros_menos_frecuentes_131 = set()
-
     def mostrar_numeros(titulo, numeros, color="#000000"):
         numeros = sorted(set(int(n) for n in numeros))
         st.markdown(
@@ -377,24 +282,16 @@ if "resultados" in st.session_state:
             if candidatos_mas is None or candidatos_menos is None:
                 st.warning(f"No hay datos disponibles para calcular el periodo de {periodo}.")
             else:
-                afectados_mas = aplicar_y_mostrar(
+                aplicar_y_mostrar(
                     candidatos_mas,
                     f"Más frecuentes, {periodo}",
                     "#28a745"
                 )
-                numeros_mas_frecuentes_131.update(afectados_mas)
-
-                afectados_menos = aplicar_y_mostrar(
+                aplicar_y_mostrar(
                     candidatos_menos,
                     f"Menos frecuentes, {periodo}",
                     "#ff4b4b"
                 )
-                numeros_menos_frecuentes_131.update(afectados_menos)
-
-    # Se conservan por separado los números grises para excluirlos expresamente
-    # de la nueva sección 1-3-1.
-    candidatos_ultimos_3 = set()
-    candidatos_ultimo_sorteo = set()
 
     with st.container(border=True):
         df_calculo_actual = st.session_state.get("df_calculo")
@@ -425,11 +322,11 @@ if "resultados" in st.session_state:
                 "Últimos 3 sorteos (2 o más apariciones)",
                 "#007bff"
             )
-
+            
             numeros_completos_ultimos_3 = ", ".join(
                 str(n) for n in sorted(candidatos_ultimos_3)
             ) if candidatos_ultimos_3 else "Ningún número"
-
+            
             st.markdown(
                 f"<div style='color:#888;font-size:15px;margin-top:4px;'>"
                 f"{numeros_completos_ultimos_3}</div>",
@@ -486,52 +383,63 @@ if "resultados" in st.session_state:
         f"Total eliminados {len(descartados_totales)}. Restantes {len(restantes)}."
     )
 
-    # =========================================
-    # COMBINACIONES CON NÚMEROS RESTANTES
-    # EXACTAMENTE DOS TIPOS DE DECENAS
-    # =========================================
-
     numeros_disponibles = sorted(set(restantes))
-
     unidades = [n for n in numeros_disponibles if 1 <= n <= 9]
     decenas = [n for n in numeros_disponibles if 10 <= n <= 19]
     veintenas = [n for n in numeros_disponibles if 20 <= n <= 28]
+    grupos_numeros = [unidades, decenas, veintenas]
+    cantidades = [len(grupo) for grupo in grupos_numeros]
 
-    candidatas_restantes = []
+    cantidad_combinaciones = 0
+    asignacion_singulares = []
+    for k in range(len(numeros_disponibles) // 5, 0, -1):
+        opciones = []
+        for s0 in range(k + 1):
+            for s1 in range(k + 1):
+                s2 = k - s0 - s1
+                if not 0 <= s2 <= k:
+                    continue
+                singulares = [s0, s1, s2]
+                usados_por_grupo = [2 * k - singulares[g] for g in range(3)]
+                if all(usados_por_grupo[g] <= cantidades[g] for g in range(3)):
+                    opciones.append(singulares)
+        if opciones:
+            cantidad_combinaciones = k
+            asignacion_singulares = random.choice(opciones)
+            break
 
-    # Generar todas las combinaciones posibles de cinco números.
-    for combinacion in combinations(numeros_disponibles, 5):
+    posiciones = [0, 0, 0]
+    mejores_combinaciones = []
+    if cantidad_combinaciones:
+        grupos_singulares = []
+        for indice_grupo, cantidad_singular in enumerate(asignacion_singulares):
+            grupos_singulares.extend([indice_grupo] * cantidad_singular)
+        random.shuffle(grupos_singulares)
 
-        cantidades = [
-            sum(1 <= n <= 9 for n in combinacion),
-            sum(10 <= n <= 19 for n in combinacion),
-            sum(20 <= n <= 28 for n in combinacion)
-        ]
+        grupos_barajados = [grupo[:] for grupo in grupos_numeros]
+        for grupo in grupos_barajados:
+            random.shuffle(grupo)
 
-        distribucion = sorted(
-            cantidad for cantidad in cantidades if cantidad > 0
-        )
+        for grupo_singular in grupos_singulares:
+            combinacion = []
+            for indice_grupo in range(3):
+                aporte = 1 if indice_grupo == grupo_singular else 2
+                inicio = posiciones[indice_grupo]
+                fin = inicio + aporte
+                combinacion.extend(grupos_barajados[indice_grupo][inicio:fin])
+                posiciones[indice_grupo] = fin
 
-        # Exactamente dos tipos de decenas, distribución 3-2.
-        if distribucion == [2, 3]:
-            candidatas_restantes.append(combinacion)
+            if (
+                len(combinacion) == 5
+                and len(set(combinacion)) == 5
+                and any(1 <= n <= 9 for n in combinacion)
+                and any(10 <= n <= 19 for n in combinacion)
+                and any(20 <= n <= 28 for n in combinacion)
+            ):
+                mejores_combinaciones.append(sorted(combinacion))
 
-    limite_teorico = len(numeros_disponibles) // 5
-
-    mejores_combinaciones = seleccionar_maximo_sin_repetir(
-        candidatas_restantes,
-        limite=limite_teorico,
-        intentos=200
-    )
-
-    numeros_usados = {
-        n for combinacion in mejores_combinaciones
-        for n in combinacion
-    }
-
-    numeros_incompletos = sorted(
-        set(numeros_disponibles) - numeros_usados
-    )
+    numeros_usados = {n for combinacion in mejores_combinaciones for n in combinacion}
+    numeros_incompletos = sorted(set(numeros_disponibles) - numeros_usados)
 
     st.session_state["combinaciones_descartes"] = mejores_combinaciones
     st.session_state["incompletos_descartes"] = numeros_incompletos
@@ -543,7 +451,6 @@ if "resultados" in st.session_state:
             unsafe_allow_html=True
         )
 
-    # Números sobrantes en una sola línea.
     if numeros_incompletos:
         st.markdown(
             f"<div style='color:#28a745;font-size:22px;font-weight:700;line-height:1.7;'>"
@@ -552,80 +459,3 @@ if "resultados" in st.session_state:
         )
 
     st.button("Regenerar combinaciones")
-
-    # =========================================
-    # NUEVA SECCIÓN: COMBINACIONES 1-3-1
-    # =========================================
-
-    st.markdown("---")
-    st.subheader("Combinaciones 1-3-1")
-
-    # Los números grises se excluyen aunque también aparezcan en algún conjunto.
-    numeros_grises = candidatos_ultimos_3 | candidatos_ultimo_sorteo
-
-    pool_mas_frecuentes = numeros_mas_frecuentes_131 - numeros_grises
-    pool_intermedios = set(restantes) - numeros_grises
-    pool_menos_frecuentes = numeros_menos_frecuentes_131 - numeros_grises
-
-    firma_131 = (
-        tuple(sorted(pool_mas_frecuentes)),
-        tuple(sorted(pool_intermedios)),
-        tuple(sorted(pool_menos_frecuentes))
-    )
-
-    if (
-        "firma_combinaciones_131" not in st.session_state
-        or st.session_state["firma_combinaciones_131"] != firma_131
-    ):
-        st.session_state["firma_combinaciones_131"] = firma_131
-        st.session_state["combinaciones_131"] = generar_combinaciones_131(
-            pool_mas_frecuentes,
-            pool_intermedios,
-            pool_menos_frecuentes
-        )
-
-    if st.button("Regenerar combinaciones 1-3-1", key="regenerar_131"):
-        st.session_state["combinaciones_131"] = generar_combinaciones_131(
-            pool_mas_frecuentes,
-            pool_intermedios,
-            pool_menos_frecuentes
-        )
-
-    combinaciones_131 = st.session_state.get("combinaciones_131", [])
-
-    if combinaciones_131:
-        for combinacion in combinaciones_131:
-            st.markdown(
-                f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
-                f"{', '.join(str(n) for n in combinacion)}</div>",
-                unsafe_allow_html=True
-            )
-    else:
-        st.info(
-            "No fue posible generar combinaciones con la estructura 1-3-1 "
-            "y exactamente dos tipos de decenas (distribución 3-2 o 2-3) "
-            "con los números disponibles."
-        )
-
-    numeros_usados_131 = {
-        n for combinacion in combinaciones_131
-        for n in combinacion
-    }
-
-    numeros_disponibles_131 = sorted(
-        pool_mas_frecuentes |
-        pool_intermedios |
-        pool_menos_frecuentes
-    )
-
-    numeros_sobrantes_131 = [
-        n for n in numeros_disponibles_131
-        if n not in numeros_usados_131
-    ]
-
-    if numeros_sobrantes_131:
-        st.markdown(
-            f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
-            f"{', '.join(str(n) for n in numeros_sobrantes_131)}</div>",
-            unsafe_allow_html=True
-        )
