@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import io
@@ -120,7 +121,10 @@ if archivo is not None:
             "1 semana": 7,
             "15 días": 15,
             "1 mes": 30,
-            "2 meses": 60
+            "Mes y medio": 45,
+            "2 meses": 60,
+            "2 meses y medio": 75,
+            "3 meses": 90
         }
         resultados = {}
 
@@ -274,19 +278,24 @@ if "resultados" in st.session_state:
         mostrar_numeros(titulo, afectados, color=color)
         return afectados
 
-    for periodo in ["1 semana", "15 días", "1 mes", "2 meses"]:
+    # Únicamente descartes de menos frecuentes, nivel 1.
+    periodos_descartes = [
+        "1 semana",
+        "15 días",
+        "1 mes",
+        "Mes y medio",
+        "2 meses",
+        "2 meses y medio",
+        "3 meses"
+    ]
+
+    for periodo in periodos_descartes:
         with st.container(border=True):
-            candidatos_mas = obtener_candidatos_frecuencia(periodo, "mas")
             candidatos_menos = obtener_candidatos_frecuencia(periodo, "menos")
 
-            if candidatos_mas is None or candidatos_menos is None:
+            if candidatos_menos is None:
                 st.warning(f"No hay datos disponibles para calcular el periodo de {periodo}.")
             else:
-                aplicar_y_mostrar(
-                    candidatos_mas,
-                    f"Más frecuentes, {periodo}",
-                    "#28a745"
-                )
                 aplicar_y_mostrar(
                     candidatos_menos,
                     f"Menos frecuentes, {periodo}",
@@ -322,11 +331,11 @@ if "resultados" in st.session_state:
                 "Últimos 3 sorteos (2 o más apariciones)",
                 "#007bff"
             )
-            
+
             numeros_completos_ultimos_3 = ", ".join(
                 str(n) for n in sorted(candidatos_ultimos_3)
             ) if candidatos_ultimos_3 else "Ningún número"
-            
+
             st.markdown(
                 f"<div style='color:#888;font-size:15px;margin-top:4px;'>"
                 f"{numeros_completos_ultimos_3}</div>",
