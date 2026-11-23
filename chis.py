@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import io
@@ -268,6 +267,14 @@ if "resultados" in st.session_state:
                     int(n) for n, frecuencia in serie_dec.items()
                     if int(frecuencia) == nivel
                 )
+
+        # Regla adicional exclusiva de 1 semana:
+        # descartar también los números con 0 o 1 aparición.
+        if periodo == "1 semana" and tipo == "menos":
+            candidatos_periodo.update(
+                int(n) for n, frecuencia in serie.items()
+                if int(frecuencia) <= 1
+            )
 
         return candidatos_periodo
 
