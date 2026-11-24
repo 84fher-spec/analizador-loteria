@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import io
@@ -228,7 +229,7 @@ if "resultados" in st.session_state:
         st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
     st.markdown("---")
-    st.subheader("🧹Descarte de números, nivel 1")
+    st.subheader("🧹Descarte de números, nivel 2")
 
     disponibles = set(range(1, 29))
     descartados_totales = set()
@@ -261,11 +262,14 @@ if "resultados" in st.session_state:
         for rango_dec in rangos_decenas.values():
             serie_dec = serie[serie.index.isin(rango_dec)]
             if not serie_dec.empty:
-                frecuencias = [int(f) for f in serie_dec.values]
-                nivel = min(frecuencias) if tipo == "menos" else max(frecuencias)
+                frecuencias = sorted(set(int(f) for f in serie_dec.values))
+                if tipo == "menos":
+                    niveles = frecuencias[:2]
+                else:
+                    niveles = frecuencias[-2:]
                 candidatos_periodo.update(
                     int(n) for n, frecuencia in serie_dec.items()
-                    if int(frecuencia) == nivel
+                    if int(frecuencia) in niveles
                 )
 
         return candidatos_periodo
@@ -277,7 +281,7 @@ if "resultados" in st.session_state:
         mostrar_numeros(titulo, afectados, color=color)
         return afectados
 
-    # Únicamente descartes de menos frecuentes, nivel 1.
+    # Únicamente descartes de menos frecuentes, nivel 2.
     periodos_descartes = [
         "15 días",
         "1 mes",
