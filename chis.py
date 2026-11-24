@@ -268,14 +268,6 @@ if "resultados" in st.session_state:
                     if int(frecuencia) == nivel
                 )
 
-        # Regla adicional exclusiva de 1 semana:
-        # descartar también los números con 0 o 1 aparición.
-        if periodo == "1 semana" and tipo == "menos":
-            candidatos_periodo.update(
-                int(n) for n, frecuencia in serie.items()
-                if int(frecuencia) <= 1
-            )
-
         return candidatos_periodo
 
     def aplicar_y_mostrar(candidatos, titulo, color):
@@ -287,7 +279,6 @@ if "resultados" in st.session_state:
 
     # Únicamente descartes de menos frecuentes, nivel 1.
     periodos_descartes = [
-        "1 semana",
         "15 días",
         "1 mes",
         "Mes y medio",
