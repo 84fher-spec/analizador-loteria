@@ -1,9 +1,9 @@
-
 import streamlit as st
 import pandas as pd
 import io
 from datetime import timedelta
 import random
+from itertools import combinations, product
 
 # =========================================
 # CONFIGURACIÓN GENERAL
@@ -68,6 +68,74 @@ def seleccionar_grupo(candidatos, todos, cantidad):
 
 
 # =========================================
+# GENERADOR 1-3-1
+# =========================================
+
+def generar_combinaciones_131(mas_frecuentes, intermedios, menos_frecuentes):
+    """
+    Genera combinaciones sin reutilizar números entre ellas:
+    1 más frecuente + 3 intermedios + 1 menos frecuente.
+    Cada combinación debe tener distribución 2-2-1 entre
+    unidades, decenas y veintenas.
+    """
+    mas_frecuentes = sorted(set(mas_frecuentes))
+    intermedios = sorted(set(intermedios))
+    menos_frecuentes = sorted(set(menos_frecuentes))
+
+    if not mas_frecuentes or len(intermedios) < 3 or not menos_frecuentes:
+        return []
+
+    candidatas = []
+
+    for frecuente, tres_intermedios, menos in product(
+        mas_frecuentes,
+        combinations(intermedios, 3),
+        menos_frecuentes
+    ):
+        combinacion = tuple(sorted((frecuente, *tres_intermedios, menos)))
+
+        unidades = sum(1 <= n <= 9 for n in combinacion)
+        decenas = sum(10 <= n <= 19 for n in combinacion)
+        veintenas = sum(20 <= n <= 28 for n in combinacion)
+
+        if sorted((unidades, decenas, veintenas)) == [1, 2, 2]:
+            candidatas.append(combinacion)
+
+    if not candidatas:
+        return []
+
+    # Busca el mayor conjunto posible de combinaciones sin reutilizar números.
+    mejor_resultado = []
+    intentos = min(300, max(50, len(candidatas) // 10))
+
+    for _ in range(intentos):
+        ordenadas = candidatas[:]
+        random.shuffle(ordenadas)
+
+        usadas = set()
+        resultado = []
+
+        for combinacion in ordenadas:
+            numeros = set(combinacion)
+            if not (numeros & usadas):
+                resultado.append(list(combinacion))
+                usadas.update(numeros)
+
+        if len(resultado) > len(mejor_resultado):
+            mejor_resultado = resultado
+
+        limite_teorico = min(
+            len(mas_frecuentes),
+            len(intermedios) // 3,
+            len(menos_frecuentes)
+        )
+        if len(mejor_resultado) >= limite_teorico:
+            break
+
+    return mejor_resultado
+
+
+# =========================================
 # CARGA CSV
 # =========================================
 
@@ -121,10 +189,7 @@ if archivo is not None:
             "1 semana": 7,
             "15 días": 15,
             "1 mes": 30,
-            "Mes y medio": 45,
-            "2 meses": 60,
-            "2 meses y medio": 75,
-            "3 meses": 90
+            "2 meses": 60
         }
         resultados = {}
 
@@ -229,10 +294,14 @@ if "resultados" in st.session_state:
         st.warning("No hay datos disponibles para calcular el periodo de 15 días.")
 
     st.markdown("---")
-    st.subheader("🧹Descarte de números, nivel 2")
+    st.subheader("🧹Descarte de números, nivel 1")
 
     disponibles = set(range(1, 29))
     descartados_totales = set()
+
+    # Acumulan únicamente los números que efectivamente se muestran en verde y rojo.
+    numeros_mas_frecuentes_131 = set()
+    numeros_menos_frecuentes_131 = set()
 
     def mostrar_numeros(titulo, numeros, color="#000000"):
         numeros = sorted(set(int(n) for n in numeros))
@@ -262,14 +331,11 @@ if "resultados" in st.session_state:
         for rango_dec in rangos_decenas.values():
             serie_dec = serie[serie.index.isin(rango_dec)]
             if not serie_dec.empty:
-                frecuencias = sorted(set(int(f) for f in serie_dec.values))
-                if tipo == "menos":
-                    niveles = frecuencias[:2]
-                else:
-                    niveles = frecuencias[-2:]
+                frecuencias = [int(f) for f in serie_dec.values]
+                nivel = min(frecuencias) if tipo == "menos" else max(frecuencias)
                 candidatos_periodo.update(
                     int(n) for n, frecuencia in serie_dec.items()
-                    if int(frecuencia) in niveles
+                    if int(frecuencia) == nivel
                 )
 
         return candidatos_periodo
@@ -281,28 +347,32 @@ if "resultados" in st.session_state:
         mostrar_numeros(titulo, afectados, color=color)
         return afectados
 
-    # Únicamente descartes de menos frecuentes, nivel 2.
-    periodos_descartes = [
-        "15 días",
-        "1 mes",
-        "Mes y medio",
-        "2 meses",
-        "2 meses y medio",
-        "3 meses"
-    ]
-
-    for periodo in periodos_descartes:
+    for periodo in ["1 semana", "15 días", "1 mes", "2 meses"]:
         with st.container(border=True):
+            candidatos_mas = obtener_candidatos_frecuencia(periodo, "mas")
             candidatos_menos = obtener_candidatos_frecuencia(periodo, "menos")
 
-            if candidatos_menos is None:
+            if candidatos_mas is None or candidatos_menos is None:
                 st.warning(f"No hay datos disponibles para calcular el periodo de {periodo}.")
             else:
-                aplicar_y_mostrar(
+                afectados_mas = aplicar_y_mostrar(
+                    candidatos_mas,
+                    f"Más frecuentes, {periodo}",
+                    "#28a745"
+                )
+                numeros_mas_frecuentes_131.update(afectados_mas)
+
+                afectados_menos = aplicar_y_mostrar(
                     candidatos_menos,
                     f"Menos frecuentes, {periodo}",
                     "#ff4b4b"
                 )
+                numeros_menos_frecuentes_131.update(afectados_menos)
+
+    # Se conservan por separado los números grises para excluirlos expresamente
+    # de la nueva sección 1-3-1.
+    candidatos_ultimos_3 = set()
+    candidatos_ultimo_sorteo = set()
 
     with st.container(border=True):
         df_calculo_actual = st.session_state.get("df_calculo")
@@ -470,3 +540,56 @@ if "resultados" in st.session_state:
         )
 
     st.button("Regenerar combinaciones")
+
+    # =========================================
+    # NUEVA SECCIÓN: COMBINACIONES 1-3-1
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("Combinaciones 1-3-1")
+
+    # Los números grises se excluyen aunque también aparezcan en algún conjunto.
+    numeros_grises = candidatos_ultimos_3 | candidatos_ultimo_sorteo
+
+    pool_mas_frecuentes = numeros_mas_frecuentes_131 - numeros_grises
+    pool_intermedios = set(restantes) - numeros_grises
+    pool_menos_frecuentes = numeros_menos_frecuentes_131 - numeros_grises
+
+    firma_131 = (
+        tuple(sorted(pool_mas_frecuentes)),
+        tuple(sorted(pool_intermedios)),
+        tuple(sorted(pool_menos_frecuentes))
+    )
+
+    if (
+        "firma_combinaciones_131" not in st.session_state
+        or st.session_state["firma_combinaciones_131"] != firma_131
+    ):
+        st.session_state["firma_combinaciones_131"] = firma_131
+        st.session_state["combinaciones_131"] = generar_combinaciones_131(
+            pool_mas_frecuentes,
+            pool_intermedios,
+            pool_menos_frecuentes
+        )
+
+    if st.button("Regenerar combinaciones 1-3-1", key="regenerar_131"):
+        st.session_state["combinaciones_131"] = generar_combinaciones_131(
+            pool_mas_frecuentes,
+            pool_intermedios,
+            pool_menos_frecuentes
+        )
+
+    combinaciones_131 = st.session_state.get("combinaciones_131", [])
+
+    if combinaciones_131:
+        for combinacion in combinaciones_131:
+            st.markdown(
+                f"<div style='color:#007bff;font-size:22px;font-weight:700;line-height:1.7;'>"
+                f"{', '.join(str(n) for n in combinacion)}</div>",
+                unsafe_allow_html=True
+            )
+    else:
+        st.info(
+            "No fue posible generar combinaciones con la estructura 1-3-1 "
+            "y el equilibrio 2-2-1 por decenas con los números disponibles."
+        )
